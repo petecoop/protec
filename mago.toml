@@ -1,0 +1,11 @@
+php-version = "8.3"
+
+[source]
+paths = ["src", "config", "database", "tests"]
+includes = ["vendor"]
+
+[formatter]
+preset = "laravel-pint"
+
+[linter]
+integrations = ["laravel", "pest"]

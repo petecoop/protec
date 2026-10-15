@@ -1,0 +1,35 @@
+{
+    "name": "petecoop/protec",
+    "description": "Extensible suspicious activity detection and temporary IP blocks for Laravel and Livewire.",
+    "type": "library",
+    "license": "MIT",
+    "authors": [{ "name": "Pete Cooper", "email": "pete@petecoop.co.uk" }],
+    "require": {
+        "php": "^8.3",
+        "illuminate/cache": "^12.0|^13.0",
+        "illuminate/console": "^12.0|^13.0",
+        "illuminate/database": "^12.0|^13.0",
+        "illuminate/http": "^12.0|^13.0",
+        "illuminate/support": "^12.0|^13.0"
+    },
+    "require-dev": {
+        "laravel/framework": "^12.0|^13.0",
+        "livewire/livewire": "^4.1",
+        "mockery/mockery": "^1.6",
+        "orchestra/testbench": "^10.0|^11.0",
+        "pestphp/pest": "^4.7",
+        "pestphp/pest-plugin-laravel": "^4.1"
+    },
+    "suggest": { "livewire/livewire": "Enables the optional Livewire detectors (4.x)." },
+    "autoload": { "psr-4": { "Petecoop\\Protec\\": "src/" } },
+    "autoload-dev": { "psr-4": { "Petecoop\\Protec\\Tests\\": "tests/" } },
+    "extra": { "laravel": { "providers": ["Petecoop\\Protec\\ProtecServiceProvider"] } },
+    "config": { "sort-packages": true, "allow-plugins": { "pestphp/pest-plugin": true } },
+    "scripts": {
+        "test": "pest",
+        "lint": "mago lint",
+        "format": "mago fmt",
+        "format:check": "mago fmt --check",
+        "check": ["@format:check", "@lint", "@test"]
+    }
+}
