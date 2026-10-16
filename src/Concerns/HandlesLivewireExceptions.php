@@ -14,19 +14,25 @@ trait HandlesLivewireExceptions
 {
     public function isLivewireTampering(Inspection $inspection): bool
     {
+        return $this->livewireTamperingConfiguration($inspection) !== null;
+    }
+
+    /** @return array<string, mixed>|null */
+    protected function livewireTamperingConfiguration(Inspection $inspection): ?array
+    {
         if (! $this->shouldInspect($inspection->request)) {
-            return false;
+            return null;
         }
 
         foreach ($this->detectors()->definitions() as $class => $definition) {
             $detector = $this->detectors()->detector($class);
 
             if ($detector instanceof CorruptLivewirePayload && $detector->detect($inspection) !== null) {
-                return true;
+                return $definition;
             }
         }
 
-        return false;
+        return null;
     }
 
     public function handleException(Response $response, Throwable $exception, Request $request): Response
@@ -36,9 +42,8 @@ trait HandlesLivewireExceptions
 
     public function shouldIgnoreException(Throwable $exception, Request $request): bool
     {
-        return (
-            ! config('protec.report_livewire_tampering', default: false)
-            && $this->isLivewireTampering(new Inspection($request, exception: $exception))
-        );
+        $configuration = $this->livewireTamperingConfiguration(new Inspection($request, exception: $exception));
+
+        return $configuration !== null && ! ($configuration['report'] ?? false);
     }
 }

@@ -6,7 +6,7 @@ use Illuminate\Auth\GenericUser;
 use Illuminate\Support\Facades\Route;
 use Livewire\Livewire;
 use Petecoop\Protec\Detectors\CorruptLivewirePayload;
-use Petecoop\Protec\Detectors\DisallowedLivewireComponent;
+use Petecoop\Protec\Detectors\GuestLivewireComponents;
 use Petecoop\Protec\Models\IpBlock;
 
 it('counts genuine checksum failures and blocks on the fifth without counting twice', function () {
@@ -61,8 +61,8 @@ it('exempts authenticated users from Livewire tampering detection', function () 
 
 it('denies valid snapshots for disallowed components before executing their actions', function () {
     $snapshot = $this->counterSnapshot();
-    config()->set('protec.detectors.'.DisallowedLivewireComponent::class.'.enabled', true);
-    config()->set('protec.detectors.'.DisallowedLivewireComponent::class.'.policy.attempts', 2);
+    config()->set('protec.detectors.'.GuestLivewireComponents::class.'.enabled', true);
+    config()->set('protec.detectors.'.GuestLivewireComponents::class.'.policy.attempts', 2);
 
     $this->postJson(Livewire::getUpdateUri(), $this->payload($snapshot), [
         'X-Livewire' => 'true',
@@ -72,22 +72,23 @@ it('denies valid snapshots for disallowed components before executing their acti
     ])->assertTooManyRequests();
 });
 
-it('allows configured guest components and rejects read-only property updates', function () {
+it('allows property updates for configured guest components', function () {
     $snapshot = $this->counterSnapshot();
-    config()->set('protec.detectors.'.DisallowedLivewireComponent::class.'.enabled', true);
-    config()->set('protec.livewire.guest_components', ['counter']);
-    config()->set('protec.livewire.read_only_components', ['counter']);
+    config()->set('protec.detectors.'.GuestLivewireComponents::class.'.enabled', true);
+    config()->set('protec.detectors.'.GuestLivewireComponents::class.'.components', ['counter']);
 
     $this->postJson(Livewire::getUpdateUri(), $this->payload($snapshot), ['X-Livewire' => 'true'])->assertOk();
-    $this->postJson(Livewire::getUpdateUri(), $this->payload($snapshot, ['count' => 10]), [
+    $response = $this->postJson(Livewire::getUpdateUri(), $this->payload($snapshot, ['count' => 10]), [
         'X-Livewire' => 'true',
-    ])->assertUnauthorized();
+    ])->assertOk();
+    $updated = json_decode($response->json('components.0.snapshot'), associative: true, flags: JSON_THROW_ON_ERROR);
+    expect($updated['data']['count'])->toBe(10);
 });
 
 it('does not allow a mixed batch containing a disallowed component', function () {
     $snapshot = $this->counterSnapshot();
-    config()->set('protec.detectors.'.DisallowedLivewireComponent::class.'.enabled', true);
-    config()->set('protec.livewire.guest_components', ['counter']);
+    config()->set('protec.detectors.'.GuestLivewireComponents::class.'.enabled', true);
+    config()->set('protec.detectors.'.GuestLivewireComponents::class.'.components', ['counter']);
     $payload = $this->payload($snapshot);
     $snapshot['memo']['name'] = 'private-component';
     $payload['components'][] = $this->payload($snapshot)['components'][0];
@@ -98,16 +99,16 @@ it('does not allow a mixed batch containing a disallowed component', function ()
 it('leaves checksum verification in place for allowlisted components', function () {
     $snapshot = $this->counterSnapshot();
     $snapshot['checksum'] = str_repeat('0', times: 64);
-    config()->set('protec.detectors.'.DisallowedLivewireComponent::class.'.enabled', true);
-    config()->set('protec.livewire.guest_components', ['counter']);
+    config()->set('protec.detectors.'.GuestLivewireComponents::class.'.enabled', true);
+    config()->set('protec.detectors.'.GuestLivewireComponents::class.'.components', ['counter']);
 
     $this->postJson(Livewire::getUpdateUri(), $this->payload($snapshot), ['X-Livewire' => 'true'])->assertStatus(419);
 });
 
 it('rejects disallowed components when a replacement policy omits a rejection status', function () {
     $snapshot = $this->counterSnapshot();
-    config()->set('protec.detectors.'.DisallowedLivewireComponent::class.'.enabled', true);
-    config()->set('protec.detectors.'.DisallowedLivewireComponent::class.'.policy', [
+    config()->set('protec.detectors.'.GuestLivewireComponents::class.'.enabled', true);
+    config()->set('protec.detectors.'.GuestLivewireComponents::class.'.policy', [
         'attempts' => 2,
         'within' => '1m',
         'block_for' => '1h',
@@ -123,8 +124,8 @@ it('rejects disallowed components when a replacement policy omits a rejection st
 
 it('allows a policy to override the initial guest rejection status without changing the block status', function () {
     $snapshot = $this->counterSnapshot();
-    config()->set('protec.detectors.'.DisallowedLivewireComponent::class.'.enabled', true);
-    config()->set('protec.detectors.'.DisallowedLivewireComponent::class.'.policy', [
+    config()->set('protec.detectors.'.GuestLivewireComponents::class.'.enabled', true);
+    config()->set('protec.detectors.'.GuestLivewireComponents::class.'.policy', [
         'attempts' => 2,
         'reject_with' => 403,
     ]);

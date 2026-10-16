@@ -70,7 +70,7 @@ it('suppresses known tampering before app reporting callbacks and honours the re
     $this->postJson(Livewire::getUpdateUri(), $this->payload($snapshot), ['X-Livewire' => 'true'])->assertStatus(419);
     expect($reported)->toBeFalse();
 
-    config()->set('protec.report_livewire_tampering', true);
+    config()->set('protec.detectors.'.CorruptLivewirePayload::class.'.report', true);
     // Livewire's exception has its own report() in production. Debug allows
     // Laravel's regular reporting callbacks to run for this assertion.
     config()->set('app.debug', true);

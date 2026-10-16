@@ -9,8 +9,13 @@ use Petecoop\Protec\Data\Detection;
 use Petecoop\Protec\Data\Inspection;
 use Petecoop\Protec\LivewireComponentNames;
 
-class DisallowedLivewireComponent implements Detector
+class GuestLivewireComponents implements Detector
 {
+    /** @param array<string, mixed> $configuration */
+    public function __construct(
+        protected array $configuration = [],
+    ) {}
+
     public function detect(Inspection $inspection): ?Detection
     {
         if (
@@ -30,11 +35,7 @@ class DisallowedLivewireComponent implements Detector
         foreach ($components as $component) {
             $name = $this->componentName($component);
 
-            if ($name === null || ! in_array($name, $this->guestComponents(), strict: true)) {
-                return new Detection('unauthorized-livewire-component', ['component' => $name], rejectWith: 401);
-            }
-
-            if ($this->hasDisallowedUpdates($name, $component)) {
+            if ($name === null || ! in_array($name, $this->components(), strict: true)) {
                 return new Detection('unauthorized-livewire-component', ['component' => $name], rejectWith: 401);
             }
         }
@@ -43,27 +44,12 @@ class DisallowedLivewireComponent implements Detector
     }
 
     /** @return list<string> */
-    public function guestComponents(): array
+    public function components(): array
     {
         return array_map(
             app(LivewireComponentNames::class)->normalize(...),
-            config('protec.livewire.guest_components', []),
+            $this->configuration['components'] ?? [],
         );
-    }
-
-    /** @return list<string> */
-    public function readOnlyComponents(): array
-    {
-        return array_map(
-            app(LivewireComponentNames::class)->normalize(...),
-            config('protec.livewire.read_only_components', []),
-        );
-    }
-
-    /** @param array<string, mixed> $component */
-    protected function hasDisallowedUpdates(string $name, array $component): bool
-    {
-        return in_array($name, $this->readOnlyComponents(), strict: true) && ($component['updates'] ?? []) !== [];
     }
 
     protected function componentName(mixed $component): ?string

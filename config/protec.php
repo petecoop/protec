@@ -58,31 +58,24 @@ return [
         Detectors\CorruptLivewirePayload::class => [
             'policy' => ['attempts' => 5, 'within' => '10m', 'block_for' => '10m'],
             'escalation' => false,
+
+            // Keep matched exceptions in Laravel's normal error reporting when true.
+            'report' => false,
         ],
         // Opt in after listing the components that guests should be able to use.
-        Detectors\DisallowedLivewireComponent::class => [
+        Detectors\GuestLivewireComponents::class => [
             'enabled' => false,
             'policy' => ['attempts' => 20, 'within' => '10m', 'block_for' => '10m', 'reject_with' => 401],
             'escalation' => false,
+
+            // Component names or classes allowed for guests. Empty denies all.
+            'components' => [],
         ],
     ],
 
     // Matching exemptions skip detection AND enforcement of existing blocks.
     // Remove AuthenticatedRequests to apply protection to signed-in users too.
     'exemptions' => [AuthenticatedRequests::class],
-
-    'livewire' => [
-        // Component names or classes allowed for guests when the opt-in
-        // DisallowedLivewireComponent detector is enabled. Empty denies all.
-        'guest_components' => [],
-
-        // Allowed guest components that reject property updates. Action calls
-        // are still permitted and must authorize their own sensitive behaviour.
-        'read_only_components' => [],
-    ],
-
-    // Keep known Livewire tampering in application error reporting when true.
-    'report_livewire_tampering' => false,
 
     // Retain expired rows for model:prune. Accepts an interval or integer seconds;
     // 0 prunes immediately, while keeping any enabled escalation history window.

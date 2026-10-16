@@ -60,6 +60,14 @@ Protec::ban('203.0.113.11', for: '2d', reason: 'manual-review');
 
 An explicit ban replaces the IP's current block. Exemptions still apply when enforcing bans; remove `AuthenticatedRequests` from `exemptions` to include signed-in users.
 
+Unblock an IP:
+
+```php
+use Petecoop\Protec\Facades\Protec;
+
+Protec::unblock('203.0.113.10');
+```
+
 ### Repeat offenders
 
 Add an `escalation` array inside a detector's config entry to escalate a repeating offender:
@@ -112,53 +120,53 @@ Livewire protection works automatically on its update route.
 ```php
 \Petecoop\Protec\Detectors\CorruptLivewirePayload::class => [
     'policy' => ['attempts' => 5, 'within' => '10m', 'block_for' => '10m'],
+    'report' => false,
 ],
 ```
 
-Below the threshold, the original error response is preserved. Ordinary 419 responses do not count. Known tampering is suppressed from application error reporting by default; set the top-level `report_livewire_tampering` option to `true` to keep it in the application's normal reporting flow.
+Below the threshold, the original error response is preserved. Known tampering is suppressed from application error reporting by default; set this detector's `report` option to `true` to keep it in the application's normal reporting flow.
 
 ### Guest component restrictions
 
-`DisallowedLivewireComponent` restricts which components guests may update. Livewire has strong protections but this is intended to add a layer of protection from accidentally exposing sensitive data, and to catch and block scanners trying to exploit. It is disabled by default. Enable its entry under `detectors` after listing the components guests need:
+`GuestLivewireComponents` restricts which components guests may update. Livewire has strong protections but this is intended to add a layer of protection from accidentally exposing sensitive data, and to catch and block scanners trying to exploit. It is disabled by default. Enable its entry under `detectors` after listing the components guests need:
 
 ```php
-\Petecoop\Protec\Detectors\DisallowedLivewireComponent::class => [
+\Petecoop\Protec\Detectors\GuestLivewireComponents::class => [
     'enabled' => true,
     'policy' => ['attempts' => 20, 'within' => '10m', 'block_for' => '10m', 'reject_with' => 401],
+    'components' => [\App\Livewire\Login::class, 'public-counter'],
 ],
 ```
 
 These options reject each disallowed request with 401, then block for 10 minutes after 20 matches within 10 minutes. Disallowed component requests are always rejected; omitting `reject_with` keeps the default 401. Set it to another HTTP error status to change the initial rejection.
 
-Set the allowed component names or classes in the top-level `livewire` section:
-
-```php
-'livewire' => [
-    'guest_components' => [\App\Livewire\Login::class, 'public-counter'],
-    'read_only_components' => [],
-],
-```
-
-An empty guest list rejects all guest component updates when the detector is enabled. Every component in a batch must be allowed. Add allowed guest components to `read_only_components` to reject property updates; their action calls are still permitted.
-
-Incoming component names are untrusted: a rejected request does not prove successful access. Continue authorizing sensitive actions, queries, and uploads inside components.
+`components` accepts component names or classes. An empty guest list rejects all guest component updates when the detector is enabled.
 
 ## Additional information
 
-### Unblocking and pruning
+### Events
 
-Unblock an IP through the facade or Artisan:
+The following events are dispatched which can be used for further logging if required. Prefix the `Petecoop\Protec\Events\` namespace.
 
-```php
-\Petecoop\Protec\Facades\Protec::unblock('203.0.113.10');
-```
+- `ActivityDetected` — dispatched whenever suspicious activity increments an IP's attempt counter, including the match that triggers a block. Exempt requests and requests from an already-blocked IP do not trigger it.
+- `IpBlocked` — dispatched when a new block is created, an expired block is reactivated, or a manual ban is applied. Subsequent requests rejected by an existing block do not trigger it again.
+- `IpUnblocked` — dispatched when an active block is manually lifted through `Protec::unblock()` or `protec:unblock`. Natural expiration does not trigger this event.
+
+### Pruning IP Blocks
+
+Expired records are retained for `retention` (`'30d'` by default), and at least the longest enabled detector escalation window. Permanent bans are never pruned.
 
 ```sh
-php artisan protec:unblock 203.0.113.10
 php artisan model:prune --model='Petecoop\Protec\Models\IpBlock'
 ```
 
-Expired records are retained for `retention` (`'30d'` by default), and at least the longest enabled detector escalation window. Integer retention values are seconds; use `0` to prune immediately once escalation history is no longer needed. Permanent bans are never pruned. Schedule `model:prune` as needed. One row is maintained per IP; events `ActivityDetected`, `IpBlocked`, and `IpUnblocked` are available for logging or an audit history.
+Schedule within Laravel:
+
+```php
+Schedule::command('model:prune', [
+    '--model' => [\Petecoop\Protec\Models\IpBlock::class],
+])->daily();
+```
 
 ### Customisation
 
