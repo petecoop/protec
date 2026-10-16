@@ -94,7 +94,7 @@ it('escalates the fifth new block within eight hours to seven days for one detec
         for ($attempt = 1; $attempt <= 3; $attempt++) {
             $this->get('/ok')->assertTooManyRequests();
         }
-        expect(IpBlock::query()->sole()->block_history[ScannerProbe::class])->toHaveCount($offence);
+        expect(IpBlock::query()->sole()->block_history['scanner-probe'])->toHaveCount($offence);
         Cache::flush();
         $this->travel(60)->seconds();
     }
@@ -119,11 +119,11 @@ it('uses a rolling escalation window rather than a fixed window', function () {
     expect($block->expires_at)
         ->not
         ->toBeNull()
-        ->and($block->block_history[ScannerProbe::class])
+        ->and($block->block_history['scanner-probe'])
         ->toHaveCount(2);
     $this->travel(1)->seconds();
     $block = Protec::record(request(), new Detection('test'), $limit, ScannerProbe::class);
-    expect($block->expires_at)->toBeNull()->and($block->block_history[ScannerProbe::class])->toHaveCount(3);
+    expect($block->expires_at)->toBeNull()->and($block->block_history['scanner-probe'])->toHaveCount(3);
 });
 
 it('excludes offences at the exact escalation window boundary', function () {
@@ -141,7 +141,7 @@ it('excludes offences at the exact escalation window boundary', function () {
     expect($block->expires_at)
         ->not
         ->toBeNull()
-        ->and($block->block_history[ScannerProbe::class])
+        ->and($block->block_history['scanner-probe'])
         ->toHaveCount(1);
 });
 
@@ -221,9 +221,9 @@ it('keeps escalation histories separate for different detectors at the same IP',
     $block = Protec::record(request(), new Detection('test'), $limit, $scanner);
     expect($block->expires_at)
         ->toBeNull()
-        ->and($block->block_history[$scanner])
+        ->and($block->block_history['scanner-probe'])
         ->toHaveCount(2)
-        ->and($block->block_history[$livewire])
+        ->and($block->block_history['corrupt-livewire-payload'])
         ->toHaveCount(1);
 });
 

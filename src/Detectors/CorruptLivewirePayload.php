@@ -12,6 +12,11 @@ use Petecoop\Protec\Data\Inspection;
 
 class CorruptLivewirePayload implements Detector
 {
+    public function name(): string
+    {
+        return 'corrupt-livewire-payload';
+    }
+
     public function detect(Inspection $inspection): ?Detection
     {
         if (! $inspection->request->routeIs('*livewire.update')) {
@@ -24,7 +29,7 @@ class CorruptLivewirePayload implements Detector
             $exception instanceof CorruptComponentPayloadException
             || $exception instanceof CannotUpdateLockedPropertyException
         ) {
-            return new Detection('corrupt-livewire-payload', ['exception' => $exception::class]);
+            return new Detection($this->name(), ['exception' => $exception::class]);
         }
 
         return null;

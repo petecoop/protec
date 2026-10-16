@@ -16,6 +16,11 @@ class GuestLivewireComponents implements Detector
         protected array $configuration = [],
     ) {}
 
+    public function name(): string
+    {
+        return 'guest-livewire-components';
+    }
+
     public function detect(Inspection $inspection): ?Detection
     {
         if (

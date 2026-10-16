@@ -17,6 +17,11 @@ class ScannerProbe implements Detector
         protected array $configuration = [],
     ) {}
 
+    public function name(): string
+    {
+        return 'scanner-probe';
+    }
+
     public function detect(Inspection $inspection): ?Detection
     {
         if ($inspection->response?->getStatusCode() !== 404) {
@@ -31,7 +36,7 @@ class ScannerProbe implements Detector
 
         foreach ($this->patterns() as $pattern) {
             if (Str::is(Str::lower($pattern), $path)) {
-                return new Detection('scanner-probe', ['pattern' => $pattern]);
+                return new Detection($this->name(), ['pattern' => $pattern]);
             }
         }
 

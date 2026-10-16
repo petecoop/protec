@@ -133,6 +133,7 @@ class Protec
 
     protected function recordActivity(string $ip, string $detector, Detection $detection, Limit $limit): ?IpBlock
     {
+        $detector = $this->detectors()->name($detector);
         $key = $this->rateLimitKey($ip, $detector, $detection->reason);
         $attempts = RateLimiter::hit($key, $limit->within);
         event(new ActivityDetected($ip, $detector, $detection, $attempts));

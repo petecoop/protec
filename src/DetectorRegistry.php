@@ -42,16 +42,33 @@ class DetectorRegistry
         return $detector;
     }
 
-    public function escalation(string $class): ?Escalation
+    public function name(string $detector): string
     {
-        $options = config('protec.detectors.'.$class.'.escalation', default: false);
+        return is_a($detector, Detector::class, allow_string: true)
+            ? $this->detector($detector)->name()
+            : $detector;
+    }
+
+    public function escalation(string $detector): ?Escalation
+    {
+        $options = false;
+
+        foreach ($this->definitions() as $class => $definition) {
+            if ($detector !== $class && $detector !== $this->name($class)) {
+                continue;
+            }
+
+            $options = $definition['escalation'] ?? false;
+
+            break;
+        }
 
         if ($options === false) {
             return null;
         }
 
         if (! is_array($options)) {
-            throw new InvalidArgumentException("Protec escalation for [{$class}] must be an array or false.");
+            throw new InvalidArgumentException("Protec escalation for [{$detector}] must be an array or false.");
         }
 
         return new Escalation(
