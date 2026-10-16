@@ -24,18 +24,18 @@ class DisallowedLivewireComponent implements Detector
         $components = $inspection->request->input('components');
 
         if (! is_array($components) || $components === []) {
-            return new Detection('unauthorized-livewire-component');
+            return new Detection('unauthorized-livewire-component', rejectWith: 401);
         }
 
         foreach ($components as $component) {
             $name = $this->componentName($component);
 
             if ($name === null || ! in_array($name, $this->guestComponents(), strict: true)) {
-                return new Detection('unauthorized-livewire-component', ['component' => $name]);
+                return new Detection('unauthorized-livewire-component', ['component' => $name], rejectWith: 401);
             }
 
-            if (in_array($name, $this->readOnlyComponents(), strict: true) && ($component['updates'] ?? []) !== []) {
-                return new Detection('unauthorized-livewire-component', ['component' => $name]);
+            if ($this->hasDisallowedUpdates($name, $component)) {
+                return new Detection('unauthorized-livewire-component', ['component' => $name], rejectWith: 401);
             }
         }
 
@@ -58,6 +58,12 @@ class DisallowedLivewireComponent implements Detector
             app(LivewireComponentNames::class)->normalize(...),
             config('protec.livewire.read_only_components', []),
         );
+    }
+
+    /** @param array<string, mixed> $component */
+    protected function hasDisallowedUpdates(string $name, array $component): bool
+    {
+        return in_array($name, $this->readOnlyComponents(), strict: true) && ($component['updates'] ?? []) !== [];
     }
 
     protected function componentName(mixed $component): ?string

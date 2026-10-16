@@ -10,7 +10,7 @@ use Petecoop\Protec\Models\IpBlock;
 beforeEach(function () {
     TrustProxies::flushState();
     TrustProxies::withHeaders(Request::HEADER_X_FORWARDED_FOR);
-    config()->set('protec.detectors.'.ScannerProbe::class.'.options.attempts', 1);
+    config()->set('protec.detectors.'.ScannerProbe::class.'.policy.attempts', 1);
 });
 
 afterEach(function () {

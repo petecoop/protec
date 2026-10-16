@@ -4,21 +4,13 @@ declare(strict_types=1);
 
 namespace Petecoop\Protec\Tests;
 
-use Illuminate\Contracts\Debug\ExceptionHandler;
-use Illuminate\Contracts\Http\Kernel;
-use Illuminate\Foundation\Exceptions\Handler;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Livewire\Livewire;
 use Livewire\LivewireServiceProvider;
 use Orchestra\Testbench\TestCase as Orchestra;
-use Petecoop\Protec\Middleware\InspectRequests;
-use Petecoop\Protec\Middleware\ProtectRequests;
-use Petecoop\Protec\Protec;
 use Petecoop\Protec\ProtecServiceProvider;
 use Petecoop\Protec\Tests\Fixtures\Counter;
 use Symfony\Component\HttpFoundation\Response;
-use Throwable;
 
 abstract class TestCase extends Orchestra
 {
@@ -46,23 +38,6 @@ abstract class TestCase extends Orchestra
         parent::setUp();
 
         (require __DIR__.'/../database/migrations/create_protec_ip_blocks_table.php')->up();
-
-        $this->app->make(Kernel::class)->pushMiddleware(InspectRequests::class);
-        $this->app['router']->pushMiddlewareToGroup('web', ProtectRequests::class);
-
-        /** @var Handler $handler */
-        $handler = $this->app->make(ExceptionHandler::class);
-        $handler->respondUsing(
-            static fn (
-                Response $response,
-                Throwable $exception,
-                Request $request,
-            ): Response => app(Protec::class)->handleException($response, $exception, $request),
-        );
-        $handler->dontReportWhen(static fn (Throwable $exception): bool => app(Protec::class)->shouldIgnoreException(
-            $exception,
-            request(),
-        ));
 
         Livewire::component('counter', Counter::class);
         Route::middleware('web')->get('/counter', static fn (): string => Livewire::mount('counter'));

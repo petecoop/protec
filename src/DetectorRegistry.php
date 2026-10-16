@@ -6,8 +6,7 @@ namespace Petecoop\Protec;
 
 use InvalidArgumentException;
 use Petecoop\Protec\Contracts\Detector;
-use Petecoop\Protec\Contracts\Policy;
-use Petecoop\Protec\Policies\RateLimitPolicy;
+use Petecoop\Protec\Data\Escalation;
 
 class DetectorRegistry
 {
@@ -34,7 +33,7 @@ class DetectorRegistry
     /** @param class-string<Detector> $class */
     public function detector(string $class): Detector
     {
-        $detector = app($class);
+        $detector = app()->makeWith($class, ['configuration' => config('protec.detectors.'.$class, [])]);
 
         if (! $detector instanceof Detector) {
             throw new InvalidArgumentException("Protec detector [{$class}] must implement Detector.");
@@ -43,17 +42,33 @@ class DetectorRegistry
         return $detector;
     }
 
-    /** @param array<string, mixed> $definition */
-    public function policy(array $definition): Policy
+    public function escalation(string $class): ?Escalation
     {
-        $policy = app()->makeWith($definition['policy'] ?? RateLimitPolicy::class, [
-            'options' => $definition['options'] ?? [],
-        ]);
+        $options = config('protec.detectors.'.$class.'.escalation', default: false);
 
-        if (! $policy instanceof Policy) {
-            throw new InvalidArgumentException('Protec policies must implement Policy.');
+        if ($options === false) {
+            return null;
         }
 
-        return $policy;
+        if (! is_array($options)) {
+            throw new InvalidArgumentException("Protec escalation for [{$class}] must be an array or false.");
+        }
+
+        return new Escalation(
+            after: $options['after'] ?? 5,
+            within: $options['within'] ?? '8h',
+            blockFor: array_key_exists('block_for', $options) ? $options['block_for'] : '7d',
+        );
+    }
+
+    public function historyWindow(): int
+    {
+        $window = 0;
+
+        foreach ($this->definitions() as $class => $definition) {
+            $window = max($window, $this->escalation($class)->within ?? 0);
+        }
+
+        return $window;
     }
 }

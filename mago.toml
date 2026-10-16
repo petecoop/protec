@@ -9,3 +9,7 @@ preset = "laravel-pint"
 
 [linter]
 integrations = ["laravel", "pest"]
+
+[linter.rules.cyclomatic-complexity]
+threshold = 25
+method-threshold = 10

@@ -15,7 +15,8 @@ return new class extends Migration {
             $table->string('detector');
             $table->string('reason');
             $table->json('context')->nullable();
-            $table->timestamp('expires_at')->index();
+            $table->timestamp('expires_at')->nullable()->index();
+            $table->json('block_history')->nullable();
             $table->timestamps();
         });
     }

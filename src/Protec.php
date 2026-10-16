@@ -11,20 +11,16 @@ use Petecoop\Protec\Contracts\Exemption;
 use Petecoop\Protec\Data\Detection;
 use Petecoop\Protec\Data\Inspection;
 use Petecoop\Protec\Data\Limit;
-use Petecoop\Protec\Detectors\CorruptLivewirePayload;
 use Petecoop\Protec\Events\ActivityDetected;
-use Petecoop\Protec\Events\IpBlocked;
-use Petecoop\Protec\Events\IpUnblocked;
 use Petecoop\Protec\Models\IpBlock;
 use Symfony\Component\HttpFoundation\Response;
-use Throwable;
 
-// The service deliberately exposes behaviour as subclass hooks on one container binding.
-// @mago-expect lint:cyclomatic-complexity
-// @mago-expect lint:kan-defect
-// @mago-expect lint:too-many-methods
 class Protec
 {
+    use Concerns\HandlesLivewireExceptions;
+    use Concerns\IdentifiesClients;
+    use Concerns\ManagesIpBlocks;
+
     public function shouldInspect(Request $request): bool
     {
         if (! config('protec.enabled', default: true)) {
@@ -76,7 +72,7 @@ class Protec
                 continue;
             }
 
-            $limit = $this->detectors()->policy($definition)->evaluate($detection, $inspection->request);
+            $limit = $this->limitFor($inspection->request, $detection, $definition['policy'] ?? []);
             $response = $this->enforce($inspection->request, $detection, $limit, $class);
 
             if ($response !== null) {
@@ -111,86 +107,15 @@ class Protec
         return response('', $status);
     }
 
-    public function unblock(string $ip): bool
-    {
-        $ip = $this->normalizeIp($ip);
-
-        if ($ip === null) {
-            return false;
-        }
-
-        $block = $this->newBlockModel()->newQuery()->where('ip_address', $ip)->first();
-
-        if ($block === null || ! $block->isActive()) {
-            return false;
-        }
-
-        $block->forceFill(['expires_at' => now()])->save();
-        RateLimiter::clear($this->rateLimitKey($ip, $block->detector, $block->reason));
-        event(new IpUnblocked($block));
-
-        return true;
-    }
-
-    public function isLivewireTampering(Inspection $inspection): bool
-    {
-        if (! $this->shouldInspect($inspection->request)) {
-            return false;
-        }
-
-        foreach ($this->detectors()->definitions() as $class => $definition) {
-            $detector = $this->detectors()->detector($class);
-
-            if ($detector instanceof CorruptLivewirePayload && $detector->detect($inspection) !== null) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    public function handleException(Response $response, Throwable $exception, Request $request): Response
-    {
-        return $this->inspect(new Inspection($request, $response, $exception)) ?? $response;
-    }
-
-    public function shouldIgnoreException(Throwable $exception, Request $request): bool
-    {
-        return (
-            ! config('protec.report_livewire_tampering', default: false)
-            && $this->isLivewireTampering(new Inspection($request, exception: $exception))
-        );
-    }
-
     protected function detectors(): DetectorRegistry
     {
         return app(DetectorRegistry::class);
     }
 
-    protected function resolveIp(Request $request): ?string
+    /** @param array<string, mixed> $policy */
+    protected function limitFor(Request $request, Detection $detection, array $policy): Limit
     {
-        // Laravel determines the client using its configured trusted proxies.
-        // Never read forwarded headers independently of that trust boundary.
-        return $this->normalizeIp($request->ip());
-    }
-
-    protected function normalizeIp(?string $ip): ?string
-    {
-        if ($ip === null || filter_var($ip, FILTER_VALIDATE_IP) === false) {
-            return null;
-        }
-
-        return inet_ntop(inet_pton($ip));
-    }
-
-    protected function newBlockModel(): IpBlock
-    {
-        return new (config('protec.model', IpBlock::class));
-    }
-
-    protected function findActiveBlock(string $ip): ?IpBlock
-    {
-        return $this->newBlockModel()->newQuery()->active()->where('ip_address', $ip)->first();
+        return Limit::fromConfig($policy);
     }
 
     protected function enforce(Request $request, Detection $detection, Limit $limit, string $detector): ?Response
@@ -201,7 +126,9 @@ class Protec
             return $this->respond($request, $block);
         }
 
-        return $limit->rejectWith === null ? null : $this->respond($request, status: $limit->rejectWith);
+        $status = $limit->rejectWith ?? $detection->rejectWith;
+
+        return $status === null ? null : $this->respond($request, status: $status);
     }
 
     protected function recordActivity(string $ip, string $detector, Detection $detection, Limit $limit): ?IpBlock
@@ -223,50 +150,5 @@ class Protec
     protected function rateLimitKey(string $ip, string $detector, string $reason): string
     {
         return 'protec:attempts:'.hash('sha256', json_encode([$ip, $detector, $reason], JSON_THROW_ON_ERROR));
-    }
-
-    protected function blockIp(string $ip, string $detector, Detection $detection, int $seconds): IpBlock
-    {
-        $model = $this->newBlockModel();
-        $changed = false;
-
-        $block = $model
-            ->getConnection()
-            ->transaction(function () use ($model, $ip, $detector, $detection, $seconds, &$changed): IpBlock {
-                $attributes = $this->blockAttributes($detector, $detection, $seconds);
-                $block = $model->newQuery()->firstOrCreate(['ip_address' => $ip], $attributes);
-
-                if ($block->wasRecentlyCreated) {
-                    $changed = true;
-
-                    return $block;
-                }
-
-                $block = $model->newQuery()->whereKey($block->getKey())->lockForUpdate()->firstOrFail();
-
-                if (! $block->isActive()) {
-                    $block->forceFill($attributes)->save();
-                    $changed = true;
-                }
-
-                return $block;
-            });
-
-        if ($changed) {
-            event(new IpBlocked($block));
-        }
-
-        return $block;
-    }
-
-    /** @return array<string, mixed> */
-    protected function blockAttributes(string $detector, Detection $detection, int $seconds): array
-    {
-        return [
-            'detector' => $detector,
-            'reason' => $detection->reason,
-            'context' => $detection->context,
-            'expires_at' => now()->addSeconds($seconds),
-        ];
     }
 }

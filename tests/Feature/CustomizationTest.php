@@ -8,11 +8,11 @@ use Petecoop\Protec\Models\IpBlock;
 use Petecoop\Protec\Protec;
 use Petecoop\Protec\Tests\Fixtures\CustomProtec;
 use Petecoop\Protec\Tests\Fixtures\ExtendedScanner;
-use Petecoop\Protec\Tests\Fixtures\ImmediatePolicy;
+use Petecoop\Protec\Tests\Fixtures\RequestAwareProtec;
 
 it('honours a container-bound Protec subclass in middleware, the facade, and the unblock command', function () {
     $this->app->bind(Protec::class, CustomProtec::class);
-    config()->set('protec.detectors.'.ScannerProbe::class.'.options.attempts', 1);
+    config()->set('protec.detectors.'.ScannerProbe::class.'.policy.attempts', 1);
 
     $this->get('/.env')->assertTooManyRequests()->assertSee('Custom blocked response');
     $block = IpBlock::query()->sole();
@@ -30,24 +30,25 @@ it('honours a container-bound Protec subclass in middleware, the facade, and the
 
 it('can replace a scanner through the container to add patterns', function () {
     $this->app->bind(ScannerProbe::class, ExtendedScanner::class);
-    config()->set('protec.detectors.'.ScannerProbe::class.'.options.attempts', 1);
+    config()->set('protec.detectors.'.ScannerProbe::class.'.policy.attempts', 1);
 
     $this->get('/private-admin/users')->assertTooManyRequests();
     expect(IpBlock::query()->sole()->context)->toBe(['pattern' => 'private-admin/*']);
 });
 
-it('can select a custom policy for an existing detector', function () {
+it('can override request-dependent limits through the Protec container binding', function () {
     $this->freezeSecond();
-    config()->set('protec.detectors.'.ScannerProbe::class.'.policy', ImmediatePolicy::class);
+    $this->app->bind(Protec::class, RequestAwareProtec::class);
 
-    $this->get('/.env')->assertTooManyRequests();
+    $this->get('/.env')->assertNotFound();
+    $this->withHeader('X-Test-Immediate', 'yes')->get('/.env')->assertTooManyRequests();
     expect(IpBlock::query()->sole()->expires_at->equalTo(now()->addSeconds(120)))->toBeTrue();
 });
 
 it('uses a configured model for persistence, enforcement, and unblocking', function () {
     Illuminate\Support\Facades\Schema::rename('protec_ip_blocks', 'custom_ip_blocks');
     config()->set('protec.model', Petecoop\Protec\Tests\Fixtures\CustomBlock::class);
-    config()->set('protec.detectors.'.ScannerProbe::class.'.options.attempts', 1);
+    config()->set('protec.detectors.'.ScannerProbe::class.'.policy.attempts', 1);
 
     $this->get('/.env')->assertTooManyRequests();
     expect(ProtecFacade::blocked(request()))->toBeInstanceOf(Petecoop\Protec\Tests\Fixtures\CustomBlock::class);
@@ -59,7 +60,7 @@ it('uses a configured model for persistence, enforcement, and unblocking', funct
 
 it('can exempt requests through a configured exemption', function () {
     config()->set('protec.exemptions', [Petecoop\Protec\Tests\Fixtures\ExemptStatusRequests::class]);
-    config()->set('protec.detectors.'.ScannerProbe::class.'.options.attempts', 1);
+    config()->set('protec.detectors.'.ScannerProbe::class.'.policy.attempts', 1);
 
     $this->get('/.env')->assertTooManyRequests();
     $this->get('/ok')->assertOk();
@@ -68,14 +69,16 @@ it('can exempt requests through a configured exemption', function () {
 
 it('honours the subclass response through Livewire exception handling', function () {
     $this->app->bind(Protec::class, CustomProtec::class);
-    config()->set('protec.detectors.'.Petecoop\Protec\Detectors\CorruptLivewirePayload::class.'.options.attempts', 1);
+    config()->set('protec.detectors.'.Petecoop\Protec\Detectors\CorruptLivewirePayload::class.'.policy.attempts', 1);
     $snapshot = $this->counterSnapshot();
     $snapshot['data']['count'] = 99;
 
-    $this->postJson(Livewire\Livewire::getUpdateUri(), $this->payload($snapshot), [
-        'X-Livewire' => 'true',
-    ])
+    $this
+        ->postJson(Livewire\Livewire::getUpdateUri(), $this->payload($snapshot), [
+            'X-Livewire' => 'true',
+        ])
         ->assertTooManyRequests()
-        ->assertSee('Custom blocked response');
+        ->assertSee('Custom blocked response')
+        ->assertHeader('X-Custom-Exception', 'handled');
     expect(IpBlock::query()->sole()->ip_address)->toBe('203.0.113.99');
 });

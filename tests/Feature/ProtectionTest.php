@@ -101,7 +101,7 @@ it('does not count successful scanner-looking routes or words in query strings',
 
 it('matches sensitive path probes including encoded paths', function (string $path) {
     $this->get($path)->assertNotFound();
-    config()->set('protec.detectors.'.ScannerProbe::class.'.options.attempts', 2);
+    config()->set('protec.detectors.'.ScannerProbe::class.'.policy.attempts', 2);
     $this->get($path)->assertTooManyRequests();
 })->with(['/.env', '/.git/config', '/%2eenv', '/backup.sql', '/wp-login.php']);
 
