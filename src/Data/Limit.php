@@ -24,7 +24,7 @@ class Limit
 
         if ($attempts < 1 || $this->within < 1 || $this->blockFor !== null && $this->blockFor < 1) {
             throw new InvalidArgumentException(
-                'Protec attempts, within, and blockFor must be positive integers; blockFor may be null for a permanent ban.',
+                'Protec attempts, within, and blockFor must be positive integers; blockFor may be null for a permanent block.',
             );
         }
 

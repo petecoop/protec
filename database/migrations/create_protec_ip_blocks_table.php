@@ -11,13 +11,16 @@ return new class extends Migration {
     {
         Schema::create('protec_ip_blocks', static function (Blueprint $table): void {
             $table->id();
-            $table->ipAddress('ip_address')->unique();
-            $table->string('detector');
-            $table->string('reason');
+            $table->ipAddress('ip_address');
+            $table->string('detector')->nullable();
+            $table->string('reason')->nullable();
             $table->json('context')->nullable();
             $table->timestamp('expires_at')->nullable()->index();
-            $table->json('block_history')->nullable();
+            $table->timestamp('unblocked_at')->nullable()->index();
             $table->timestamps();
+
+            $table->index(['ip_address', 'unblocked_at', 'expires_at']);
+            $table->index(['ip_address', 'detector', 'created_at']);
         });
     }
 

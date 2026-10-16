@@ -11,7 +11,8 @@ return [
     // Disable detection and enforcement without removing the package.
     'enabled' => env('PROTEC_ENABLED', default: true),
 
-    // Eloquent model for current IP blocks. Custom models should extend IpBlock.
+    // Eloquent model for individual IP blocks and their history. Custom models
+    // should extend IpBlock.
     'model' => IpBlock::class,
 
     // Groups that receive protection before route actions run. Global response
@@ -24,14 +25,15 @@ return [
      | classes are resolved through Laravel's container.
      |
      | attempts: matching requests needed; within: counting window;
-     | block_for: block duration, or null for a permanent ban;
+     | block_for: block duration, or null for a permanent block;
      | reject_with: optional HTTP error returned before the block threshold.
      | Durations accept integer seconds or Carbon intervals such as '10m', '8h',
      | '7d', or '1h 30m'. Set attempts to 1 to block on the first match.
      |
      | Escalation allows further blocking if the ip repeatedly triggers blocks for this detector within a rolling window.
      | Use false to disable it, or ['after' => 5, 'within' => '8h', 'block_for' => '7d'].
-     | Active-block requests and manual bans do not add offences.
+     | Retained automatic blocks count even when escalation was disabled before.
+     | Active-block requests and manual blocks do not add offences.
      */
     'detectors' => [
         Detectors\ScannerProbe::class => [
@@ -77,8 +79,8 @@ return [
     // Remove AuthenticatedRequests to apply protection to signed-in users too.
     'exemptions' => [AuthenticatedRequests::class],
 
-    // Retain expired rows for model:prune. Accepts an interval or integer seconds;
-    // 0 prunes immediately, while keeping any enabled escalation history window.
-    // Permanent bans are never pruned.
+    // Retain rows after expiry or manual unblocking for model:prune. Accepts an
+    // interval or integer seconds; 0 prunes immediately, while keeping any enabled
+    // escalation history window. Active blocks are never pruned.
     'retention' => '30d',
 ];

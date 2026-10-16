@@ -10,7 +10,7 @@ class Detection
 {
     /** @param array<string, mixed> $context */
     public function __construct(
-        public readonly string $reason,
+        public readonly ?string $reason = null,
         public readonly array $context = [],
         public readonly ?int $rejectWith = null,
     ) {

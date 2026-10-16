@@ -11,7 +11,7 @@ use Petecoop\Protec\Events\IpBlocked;
 use Petecoop\Protec\Facades\Protec;
 use Petecoop\Protec\Models\IpBlock;
 
-it('can permanently ban on the first matching request through detector options', function () {
+it('can permanently block on the first matching request through detector options', function () {
     config()->set('protec.detectors.'.ScannerProbe::class.'.policy', ['attempts' => 1, 'block_for' => null]);
 
     $this->get('/.env')->assertTooManyRequests();
@@ -25,7 +25,7 @@ it('can permanently ban on the first matching request through detector options',
     $this->get('/ok')->assertOk();
 });
 
-it('can ban immediately for a configured duration', function () {
+it('can block immediately for a configured duration', function () {
     $this->freezeSecond();
     config()->set('protec.detectors.'.ScannerProbe::class.'.policy', ['attempts' => 1, 'block_for' => '2d']);
 
@@ -47,28 +47,31 @@ it('allows permanent blocks after a rate-limit threshold as well', function () {
     expect(IpBlock::query()->sole()->expires_at)->toBeNull();
 });
 
-it('supports explicit bans and can upgrade an active temporary block to permanent', function () {
+it('adds a manual block while preserving the active temporary block', function () {
     $this->freezeSecond();
-    Protec::record(request(), new Detection('test'), new Limit(attempts: 1));
-    $block = Protec::ban('127.0.0.1', reason: 'manual-review', context: ['reference' => 'case-1']);
+    $original = Protec::record(request(), new Detection('test'), new Limit(attempts: 1));
+    $block = Protec::block('127.0.0.1', reason: 'manual-review', context: ['reference' => 'case-1']);
 
     expect($block->expires_at)
+        ->toBeNull()
+        ->and($block->detector)
         ->toBeNull()
         ->and($block->reason)
         ->toBe('manual-review')
         ->and($block->context)
         ->toBe(['reference' => 'case-1']);
-    $this->assertDatabaseCount('protec_ip_blocks', 1);
+    $this->assertDatabaseCount('protec_ip_blocks', 2);
+    expect($original->fresh()->expires_at->equalTo($original->expires_at))->toBeTrue();
     $this->get('/ok')->assertTooManyRequests();
     expect(Protec::unblock('127.0.0.1'))->toBeTrue();
     $this->get('/ok')->assertOk();
 });
 
-it('canonicalizes IPv6 for explicit bans and rejects invalid arguments', function () {
-    $block = Protec::ban('2001:0db8:0000:0000:0000:0000:0000:0001', for: 60);
+it('canonicalizes IPv6 for explicit blocks and rejects invalid arguments', function () {
+    $block = Protec::block('2001:0db8:0000:0000:0000:0000:0000:0001', for: 60);
     expect($block->ip_address)->toBe('2001:db8::1');
-    expect(fn () => Protec::ban('invalid'))->toThrow(InvalidArgumentException::class);
-    expect(fn () => Protec::ban('203.0.113.1', for: 0))->toThrow(InvalidArgumentException::class);
+    expect(fn () => Protec::block('invalid'))->toThrow(InvalidArgumentException::class);
+    expect(fn () => Protec::block('203.0.113.1', for: 0))->toThrow(InvalidArgumentException::class);
 });
 
 it('escalates the fifth new block within eight hours to seven days for one detector', function () {
@@ -94,12 +97,12 @@ it('escalates the fifth new block within eight hours to seven days for one detec
         for ($attempt = 1; $attempt <= 3; $attempt++) {
             $this->get('/ok')->assertTooManyRequests();
         }
-        expect(IpBlock::query()->sole()->block_history['scanner-probe'])->toHaveCount($offence);
+        $this->assertDatabaseCount('protec_ip_blocks', $offence);
         Cache::flush();
         $this->travel(60)->seconds();
     }
 
-    $this->assertDatabaseCount('protec_ip_blocks', 1);
+    $this->assertDatabaseCount('protec_ip_blocks', 5);
     Event::assertDispatchedTimes(IpBlocked::class, 5);
 });
 
@@ -116,14 +119,12 @@ it('uses a rolling escalation window rather than a fixed window', function () {
     Protec::record(request(), new Detection('test'), $limit, ScannerProbe::class);
     $this->travel(20)->seconds();
     $block = Protec::record(request(), new Detection('test'), $limit, ScannerProbe::class);
-    expect($block->expires_at)
-        ->not
-        ->toBeNull()
-        ->and($block->block_history['scanner-probe'])
-        ->toHaveCount(2);
+    expect($block->expires_at)->not->toBeNull();
+    $this->assertDatabaseCount('protec_ip_blocks', 3);
     $this->travel(1)->seconds();
     $block = Protec::record(request(), new Detection('test'), $limit, ScannerProbe::class);
-    expect($block->expires_at)->toBeNull()->and($block->block_history['scanner-probe'])->toHaveCount(3);
+    expect($block->expires_at)->toBeNull();
+    $this->assertDatabaseCount('protec_ip_blocks', 4);
 });
 
 it('excludes offences at the exact escalation window boundary', function () {
@@ -138,11 +139,8 @@ it('excludes offences at the exact escalation window boundary', function () {
     $this->travel(60)->seconds();
     $block = Protec::record(request(), new Detection('test'), $limit, ScannerProbe::class);
 
-    expect($block->expires_at)
-        ->not
-        ->toBeNull()
-        ->and($block->block_history['scanner-probe'])
-        ->toHaveCount(1);
+    expect($block->expires_at)->not->toBeNull();
+    $this->assertDatabaseCount('protec_ip_blocks', 2);
 });
 
 it('keeps offence histories independent for each IP', function () {
@@ -191,14 +189,17 @@ it('retains recent escalation history even when pruning retention is zero', func
     $this->assertDatabaseCount('protec_ip_blocks', 0);
 });
 
-it('does not count manual bans as automatic offences', function () {
+it('does not count manual blocks as automatic offences', function () {
     config()->set('protec.detectors.'.ScannerProbe::class.'.escalation', [
-        'after' => 5,
+        'after' => 2,
         'within' => '8h',
-        'block_for' => '7d',
+        'block_for' => null,
     ]);
-    Protec::ban('127.0.0.1', for: 1);
-    expect(IpBlock::query()->sole()->block_history)->toBeNull();
+    Protec::block('127.0.0.1', for: 1);
+    $this->travel(1)->seconds();
+    $block = Protec::record(request(), new Detection, new Limit(attempts: 1), ScannerProbe::class);
+    expect($block->expires_at)->not->toBeNull();
+    expect(IpBlock::query()->whereNull('detector')->count())->toBe(1);
 });
 
 it('keeps escalation histories separate for different detectors at the same IP', function () {
@@ -219,12 +220,11 @@ it('keeps escalation histories separate for different detectors at the same IP',
     expect($block->expires_at)->not->toBeNull();
     $this->travel(1)->seconds();
     $block = Protec::record(request(), new Detection('test'), $limit, $scanner);
-    expect($block->expires_at)
-        ->toBeNull()
-        ->and($block->block_history['scanner-probe'])
-        ->toHaveCount(2)
-        ->and($block->block_history['corrupt-livewire-payload'])
-        ->toHaveCount(1);
+    expect($block->expires_at)->toBeNull();
+    expect(IpBlock::query()->where('detector', 'scanner-probe')->count())
+        ->toBe(2)
+        ->and(IpBlock::query()->where('detector', 'corrupt-livewire-payload')->count())
+        ->toBe(1);
 });
 
 it('can disable escalation for one detector while enabling it for another', function () {
@@ -238,14 +238,14 @@ it('can disable escalation for one detector while enabling it for another', func
     $limit = new Limit(attempts: 1, blockFor: 1);
     for ($attempt = 1; $attempt <= 3; $attempt++) {
         $block = Protec::record(request(), new Detection('test'), $limit, ScannerProbe::class);
-        expect($block->expires_at)->not->toBeNull()->and($block->block_history)->toBeNull();
+        expect($block->expires_at)->not->toBeNull();
         $this->travel(1)->seconds();
     }
 });
 
-it('accepts shorthand durations for explicit bans', function () {
+it('accepts shorthand durations for explicit blocks', function () {
     $this->freezeSecond();
-    expect(Protec::ban('203.0.113.1', for: '1h 30m')->expires_at->equalTo(now()->addMinutes(90)))->toBeTrue();
+    expect(Protec::block('203.0.113.1', for: '1h 30m')->expires_at->equalTo(now()->addMinutes(90)))->toBeTrue();
 });
 
 it('preserves the longest detector escalation window during pruning', function () {

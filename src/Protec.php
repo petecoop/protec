@@ -148,7 +148,7 @@ class Protec
         return $block;
     }
 
-    protected function rateLimitKey(string $ip, string $detector, string $reason): string
+    protected function rateLimitKey(string $ip, ?string $detector, ?string $reason): string
     {
         return 'protec:attempts:'.hash('sha256', json_encode([$ip, $detector, $reason], JSON_THROW_ON_ERROR));
     }

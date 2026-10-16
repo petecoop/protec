@@ -53,15 +53,17 @@ it('uses an overridden name while finding policy and escalation by the configure
     expect($block->detector)
         ->toBe('custom-scanner')
         ->and($block->reason)
-        ->toBe('custom-scanner')
-        ->and($block->block_history)
-        ->toBe(['custom-scanner' => [now()->timestamp]]);
+        ->toBeNull();
 
     $this->travel(1)->seconds();
     $this->get('/.env')->assertNotFound();
     $this->get('/.env')->assertTooManyRequests();
-    $block->refresh();
-    expect($block->expires_at)->toBeNull()->and($block->block_history['custom-scanner'])->toHaveCount(2);
+    $latest = IpBlock::query()->latest('id')->first();
+    expect($latest->expires_at)
+        ->toBeNull()
+        ->and($block->fresh()->expires_at)
+        ->not->toBeNull();
+    $this->assertDatabaseCount('protec_ip_blocks', 2);
 
     expect(Protec::unblock('127.0.0.1'))->toBeTrue();
     $this->get('/.env')->assertNotFound();

@@ -13,7 +13,7 @@ use Petecoop\Protec\Events\IpUnblocked;
 use Petecoop\Protec\Facades\Protec;
 use Petecoop\Protec\Models\IpBlock;
 
-it('bans the tenth scanner probe and records a readable IP and expiry', function () {
+it('blocks the tenth scanner probe and records a readable IP and expiry', function () {
     Event::fake([IpBlocked::class]);
     $this->freezeSecond();
 
@@ -27,14 +27,16 @@ it('bans the tenth scanner probe and records a readable IP and expiry', function
     $block = IpBlock::query()->sole();
     expect($block->ip_address)
         ->toBe('127.0.0.1')
-        ->and($block->reason)
+        ->and($block->detector)
         ->toBe('scanner-probe')
+        ->and($block->reason)
+        ->toBeNull()
         ->and($block->expires_at->equalTo(now()->addHour()))
         ->toBeTrue();
     Event::assertDispatchedTimes(IpBlocked::class, 1);
 });
 
-it('blocks subsequent application requests before the route runs without extending the ban', function () {
+it('blocks subsequent application requests before the route runs without extending the block', function () {
     Event::fake([IpBlocked::class]);
     $this->freezeSecond();
     Protec::record(request(), new Detection('test'), new Limit(attempts: 1));
@@ -144,16 +146,21 @@ it('normalizes IPv6 addresses for blocking and unblocking', function () {
     Event::assertDispatchedTimes(IpUnblocked::class, 1);
 });
 
-it('reactivates an expired block without creating a second row', function () {
+it('creates another row after expiration and preserves the original block', function () {
     Event::fake([IpBlocked::class]);
     $this->freezeSecond();
     $limit = new Limit(attempts: 1, blockFor: 60);
-    Protec::record(request(), new Detection('one'), $limit);
+    $original = Protec::record(request(), new Detection('one'), $limit);
     $this->travel(60)->seconds();
     Protec::record(request(), new Detection('two'), $limit);
 
-    $this->assertDatabaseCount('protec_ip_blocks', 1);
-    expect(IpBlock::query()->sole()->reason)->toBe('two');
+    $this->assertDatabaseCount('protec_ip_blocks', 2);
+    expect(IpBlock::query()->latest('id')->first()->reason)
+        ->toBe('two')
+        ->and($original->fresh()->reason)
+        ->toBe('one')
+        ->and($original->fresh()->expires_at->equalTo($original->expires_at))
+        ->toBeTrue();
     Event::assertDispatchedTimes(IpBlocked::class, 2);
 });
 

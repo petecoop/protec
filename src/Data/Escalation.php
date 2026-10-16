@@ -34,17 +34,14 @@ class Escalation
      */
     public function apply(IpBlock $block, array $attributes): array
     {
-        $history = $block->block_history ?? [];
-        $detector = $attributes['detector'];
-        $timestamps = array_filter(
-            $history[$detector] ?? [],
-            fn (int $timestamp): bool => $timestamp > (now()->timestamp - $this->within),
-        );
-        $timestamps[] = now()->timestamp;
-        $history[$detector] = array_slice(array_values($timestamps), -$this->after);
-        $attributes['block_history'] = $history;
+        $previousBlocks = $block
+            ->newQuery()
+            ->where('ip_address', $block->ip_address)
+            ->where('detector', $attributes['detector'])
+            ->where('created_at', '>', now()->subSeconds($this->within))
+            ->count();
 
-        if (count($timestamps) >= $this->after && $attributes['expires_at'] !== null) {
+        if (($previousBlocks + 1) >= $this->after && $attributes['expires_at'] !== null) {
             $attributes['expires_at'] = $this->blockFor === null
                 ? null
                 : max($attributes['expires_at'], now()->addSeconds($this->blockFor));

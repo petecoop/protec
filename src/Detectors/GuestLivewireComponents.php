@@ -34,14 +34,14 @@ class GuestLivewireComponents implements Detector
         $components = $inspection->request->input('components');
 
         if (! is_array($components) || $components === []) {
-            return new Detection('unauthorized-livewire-component', rejectWith: 401);
+            return new Detection(rejectWith: 401);
         }
 
         foreach ($components as $component) {
             $name = $this->componentName($component);
 
             if ($name === null || ! in_array($name, $this->components(), strict: true)) {
-                return new Detection('unauthorized-livewire-component', ['component' => $name], rejectWith: 401);
+                return new Detection(context: ['component' => $name], rejectWith: 401);
             }
         }
 

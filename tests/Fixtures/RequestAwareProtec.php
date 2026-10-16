@@ -13,7 +13,7 @@ class RequestAwareProtec extends Protec
 {
     protected function limitFor(Request $request, Detection $detection, array $policy): Limit
     {
-        if ($request->header('X-Test-Immediate') === 'yes' && $detection->reason === 'scanner-probe') {
+        if ($request->header('X-Test-Immediate') === 'yes' && $request->is('.env')) {
             return new Limit(attempts: 1, blockFor: '2m');
         }
 

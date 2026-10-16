@@ -23,7 +23,7 @@ it('counts genuine checksum failures and blocks on the fifth without counting tw
     $this->postJson(Livewire::getUpdateUri(), $this->payload($snapshot), [
         'X-Livewire' => 'true',
     ])->assertTooManyRequests();
-    expect(IpBlock::query()->sole()->reason)->toBe('corrupt-livewire-payload');
+    expect(IpBlock::query()->sole()->detector)->toBe('corrupt-livewire-payload');
 });
 
 it('counts locked property tampering using a valid snapshot', function () {

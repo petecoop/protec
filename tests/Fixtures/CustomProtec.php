@@ -18,7 +18,7 @@ class CustomProtec extends Protec
         return parent::resolveIp($request) === '127.0.0.1' ? '203.0.113.99' : parent::resolveIp($request);
     }
 
-    protected function blockAttributes(string $detector, Detection $detection, ?int $seconds): array
+    protected function blockAttributes(?string $detector, Detection $detection, ?int $seconds): array
     {
         return [
             ...parent::blockAttributes($detector, $detection, $seconds),

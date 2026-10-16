@@ -36,7 +36,7 @@ class ScannerProbe implements Detector
 
         foreach ($this->patterns() as $pattern) {
             if (Str::is(Str::lower($pattern), $path)) {
-                return new Detection($this->name(), ['pattern' => $pattern]);
+                return new Detection(context: ['pattern' => $pattern]);
             }
         }
 

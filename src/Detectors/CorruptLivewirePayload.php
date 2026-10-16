@@ -29,7 +29,7 @@ class CorruptLivewirePayload implements Detector
             $exception instanceof CorruptComponentPayloadException
             || $exception instanceof CannotUpdateLockedPropertyException
         ) {
-            return new Detection($this->name(), ['exception' => $exception::class]);
+            return new Detection(context: ['exception' => $exception::class]);
         }
 
         return null;

@@ -11,7 +11,7 @@ class UnblockIpCommand extends Command
 {
     protected $signature = 'protec:unblock {ip : The IPv4 or IPv6 address to unblock}';
 
-    protected $description = 'Expire an active Protec IP block';
+    protected $description = 'Lift all active Protec blocks for an IP address';
 
     public function handle(Protec $protec): int
     {

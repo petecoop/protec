@@ -38,7 +38,7 @@ it('rejects invalid, negative, fractional-second and overflowing durations', fun
     '99999999999999999999999999999999999d',
 ]);
 
-it('requires positive limit durations while allowing null for permanent bans', function () {
+it('requires positive limit durations while allowing null for permanent blocks', function () {
     expect(fn () => new Limit(within: '0s'))->toThrow(InvalidArgumentException::class);
     expect(fn () => new Limit(blockFor: 0))->toThrow(InvalidArgumentException::class);
     $limit = new Limit(within: '1m', blockFor: null);
@@ -60,7 +60,7 @@ it('applies shorthand detector durations during HTTP requests', function () {
 it('accepts retention durations and treats integers as seconds', function () {
     $this->freezeSecond();
     config()->set('protec.retention', 60);
-    Petecoop\Protec\Facades\Protec::ban('203.0.113.1', for: 1);
+    Petecoop\Protec\Facades\Protec::block('203.0.113.1', for: 1);
     $this->travel(60)->seconds();
     $this->artisan('model:prune', ['--model' => [Petecoop\Protec\Models\IpBlock::class]])->assertSuccessful();
     $this->assertDatabaseCount('protec_ip_blocks', 1);

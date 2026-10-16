@@ -28,7 +28,7 @@ Protec counts matches for each IP, detector, and reason. The shared options are:
 
 - `attempts`: the number of matches that triggers a block.
 - `within`: the counting window.
-- `block_for`: the block duration; use `null` for a permanent ban.
+- `block_for`: the block duration; use `null` for a permanent block.
 - `reject_with`: an optional HTTP error status to return for each match before the block threshold.
 
 Durations accept integer seconds or strings, such as `30s`, `10m`, `8h`, `7d`, `2w`, or `1h 30m`. This applies to policy durations, escalation, and retention. Values must resolve to whole seconds.
@@ -41,24 +41,24 @@ For example, these settings block after 10 matches within 60 seconds, for one ho
 
 The threshold request and subsequent blocked requests receive an empty 429. `reject_with` controls the response before the block threshold. Further requests do not extend an active block. Set a detector entry to `false` to disable it.
 
-### Bans
+### Blocks
 
-Set `block_for` to `null` to permanently ban the IP address given the matching rule. To immediately ban on the first request set the `attempts` to 1.
+Set `block_for` to `null` to permanently block the IP address given the matching rule. To immediately block on the first request set the `attempts` to 1.
 
 ```php
 'policy' => ['attempts' => 1, 'block_for' => null],
 ```
 
-You can also ban an IP directly:
+You can also block an IP directly:
 
 ```php
 use Petecoop\Protec\Facades\Protec;
 
-Protec::ban('203.0.113.10'); // Permanent until manually unblocked.
-Protec::ban('203.0.113.11', for: '2d', reason: 'manual-review');
+Protec::block('203.0.113.10'); // Permanent until manually unblocked.
+Protec::block('203.0.113.11', for: '2d', reason: 'manual-review');
 ```
 
-An explicit ban replaces the IP's current block. Exemptions still apply when enforcing bans; remove `AuthenticatedRequests` from `exemptions` to include signed-in users.
+Each block has its own database row. An explicit block creates a new record, including when the IP already has an active block. Manual blocks have no detector; the reason is optional. Exemptions still apply when enforcing blocks; remove `AuthenticatedRequests` from `exemptions` to include signed-in users.
 
 Unblock an IP:
 
@@ -66,6 +66,22 @@ Unblock an IP:
 use Petecoop\Protec\Facades\Protec;
 
 Protec::unblock('203.0.113.10');
+```
+
+Unblocking lifts all active blocks for the IP by setting `unblocked_at`, preserving their original expiry and history.
+
+### Querying an IP
+
+```php
+$summary = Protec::ip('203.0.113.10');
+
+$summary->isBlocked;
+$summary->isPermanentlyBlocked;
+$summary->blockedUntil; // Latest active expiry; null if permanent or not blocked.
+$summary->totalBlocks; // All retained block records for this IP.
+$summary->activeBlocks;
+$summary->latestBlock; // Most recent IpBlock record, which may have ended.
+$summary->toArray(); // Also supports JSON serialization.
 ```
 
 ### Repeat offenders
@@ -76,11 +92,11 @@ Add an `escalation` array inside a detector's config entry to escalate a repeati
 'escalation' => [
     'after' => 3, // number of times the offending detector can trigger
     'within' => '8h', // within this time period
-    'block_for' => '7d', // null makes the escalated ban permanent.
+    'block_for' => '7d', // null makes the escalated block permanent.
 ],
 ```
 
-Counts are separate for each detector and IP, using a rolling window. Set that detector's `escalation` to `false` to disable it. Requests during an active block and manual bans do not add offences. Escalation never shortens the original block duration.
+Counts are separate for each detector and IP, using block creation times within a rolling window, including the new block. Retained automatic blocks count even if escalation was disabled when they were created or they were manually unblocked. Set that detector's `escalation` to `false` to disable it. Requests during an active block and manual blocks do not add offences. Escalation never shortens the original block duration.
 
 ## Blocking Scanners
 
@@ -149,12 +165,12 @@ These options reject each disallowed request with 401, then block for 10 minutes
 The following events are dispatched which can be used for further logging if required. Prefix the `Petecoop\Protec\Events\` namespace.
 
 - `ActivityDetected` — dispatched whenever suspicious activity increments an IP's attempt counter, including the match that triggers a block. Exempt requests and requests from an already-blocked IP do not trigger it.
-- `IpBlocked` — dispatched when a new block is created, an expired block is reactivated, or a manual ban is applied. Subsequent requests rejected by an existing block do not trigger it again.
-- `IpUnblocked` — dispatched when an active block is manually lifted through `Protec::unblock()` or `protec:unblock`. Natural expiration does not trigger this event.
+- `IpBlocked` — dispatched when a new automatic block or manual block is created. Subsequent requests rejected by an existing block do not trigger it again.
+- `IpUnblocked` — dispatched for each active block manually lifted through `Protec::unblock()` or `protec:unblock`. Natural expiration does not trigger this event.
 
 ### Pruning IP Blocks
 
-Expired records are retained for `retention` (`'30d'` by default), and at least the longest enabled detector escalation window. Permanent bans are never pruned.
+Records are retained for `retention` (`'30d'` by default) after expiry or manual unblocking, and at least the longest enabled detector escalation window from creation. Active blocks are never pruned.
 
 ```sh
 php artisan model:prune --model='Petecoop\Protec\Models\IpBlock'
@@ -174,4 +190,4 @@ This package is designed to be easy to customise. Implement the interfaces in `P
 
 ### Proxies
 
-Client IPs come from Laravel's `$request->ip()` and are normalized for IPv4/IPv6. Configure Laravel's trusted proxies for your ingress so the client is identified correctly. Untrusted forwarded headers are ignored. IP blocks affect clients sharing an IP; multi-server apps should use a shared Laravel rate-limiter cache store and database.
+Client IPs come from Laravel's `$request->ip()` and are normalized for IPv4/IPv6. Configure Laravel's trusted proxies for your ingress so the client is identified correctly. Untrusted forwarded headers are ignored.

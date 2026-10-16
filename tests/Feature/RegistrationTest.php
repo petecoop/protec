@@ -19,7 +19,7 @@ it('automatically protects web and api middleware groups', function () {
         ->toContain(ProtectRequests::class);
 
     Route::middleware('api')->get('/api/example', fn () => response('example'));
-    Petecoop\Protec\Facades\Protec::ban('127.0.0.1');
+    Petecoop\Protec\Facades\Protec::block('127.0.0.1');
     $this->get('/api/example')->assertTooManyRequests()->assertDontSee('example');
 });
 
