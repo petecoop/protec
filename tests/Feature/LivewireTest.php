@@ -7,7 +7,9 @@ use Illuminate\Support\Facades\Route;
 use Livewire\Livewire;
 use Petecoop\Protec\Detectors\CorruptLivewirePayload;
 use Petecoop\Protec\Detectors\GuestLivewireComponents;
+use Petecoop\Protec\GuestComponents;
 use Petecoop\Protec\Models\IpBlock;
+use Petecoop\Protec\Tests\Fixtures\Counter;
 
 it('counts genuine checksum failures and blocks on the fifth without counting twice', function () {
     $snapshot = $this->counterSnapshot();
@@ -83,6 +85,26 @@ it('allows property updates for configured guest components', function () {
     ])->assertOk();
     $updated = json_decode($response->json('components.0.snapshot'), associative: true, flags: JSON_THROW_ON_ERROR);
     expect($updated['data']['count'])->toBe(10);
+});
+
+it('leaves the Filament guest preset disabled by default', function () {
+    expect(config('protec.detectors.'.GuestLivewireComponents::class.'.components'))->toBeEmpty();
+    expect(config('protec.detectors.'.GuestLivewireComponents::class.'.enabled'))->toBeFalse();
+});
+
+it('combines the Filament preset with custom guest components and normalizes their classes', function () {
+    $snapshot = $this->counterSnapshot();
+    config()->set('protec.detectors.'.GuestLivewireComponents::class.'.enabled', true);
+    config()->set('protec.detectors.'.GuestLivewireComponents::class.'.components', [
+        GuestComponents::FILAMENT,
+        Counter::class,
+    ]);
+
+    $this->postJson(Livewire::getUpdateUri(), $this->payload($snapshot), ['X-Livewire' => 'true'])->assertOk();
+    $snapshot['memo']['name'] = 'private-component';
+    $this->postJson(Livewire::getUpdateUri(), $this->payload($snapshot), [
+        'X-Livewire' => 'true',
+    ])->assertUnauthorized();
 });
 
 it('does not allow a mixed batch containing a disallowed component', function () {

@@ -156,7 +156,16 @@ Below the threshold, the original error response is preserved. Known tampering i
 
 These options reject each disallowed request with 401, then block for 10 minutes after 20 matches within 10 minutes. Disallowed component requests are always rejected; omitting `reject_with` keeps the default 401. Set it to another HTTP error status to change the initial rejection.
 
-`components` accepts component names or classes. An empty guest list rejects all guest component updates when the detector is enabled.
+`components` accepts component names, classes, or preset arrays. An empty guest list rejects all guest component updates when the detector is enabled.
+
+For Filament installations a preset of components that are available to guest users can be used:
+
+```php
+'components' => [
+    \Petecoop\Protec\GuestComponents::FILAMENT,
+    // Add your own guest components here.
+],
+```
 
 ## Additional information
 

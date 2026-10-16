@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Petecoop\Protec\Detectors;
 
+use Illuminate\Support\Arr;
 use Petecoop\Protec\Contracts\Detector;
 use Petecoop\Protec\Data\Detection;
 use Petecoop\Protec\Data\Inspection;
@@ -53,7 +54,7 @@ class GuestLivewireComponents implements Detector
     {
         return array_map(
             app(LivewireComponentNames::class)->normalize(...),
-            $this->configuration['components'] ?? [],
+            Arr::flatten($this->configuration['components'] ?? []),
         );
     }
 

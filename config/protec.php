@@ -70,8 +70,11 @@ return [
             'policy' => ['attempts' => 20, 'within' => '10m', 'block_for' => '10m', 'reject_with' => 401],
             'escalation' => false,
 
-            // Component names or classes allowed for guests. Empty denies all.
-            'components' => [],
+            // Component names, classes, or preset arrays allowed for guests.
+            // Empty denies all. Opt in to the Filament preset when needed.
+            'components' => [
+                // \Petecoop\Protec\GuestComponents::FILAMENT,
+            ],
         ],
     ],
 
