@@ -4,7 +4,7 @@
 
 `petecoop/protec` detects suspicious requests to your Laravel application and applies temporary or permanent IP blocks. It uses Laravel's rate limiter, stores blocks in an Eloquent model, and includes protection for Livewire update requests.
 
-Supports Laravel 12/13 and PHP 8.3+. Livewire 4 is optional. Authenticated users are exempt by default.
+Supports Laravel 12/13 and PHP 8.3+. Livewire 4 is optional. Authenticated users are exempt by default. Protec checks the current request guard and all configured Laravel session guards, including non-default Filament guards, without changing the application's selected guard.
 
 ## Installation
 
@@ -158,7 +158,25 @@ These options reject each disallowed request with 401, then block for 10 minutes
 
 `components` accepts component names, classes, or preset arrays. An empty guest list rejects all guest component updates when the detector is enabled.
 
-For Filament installations a preset of components that are available to guest users can be used:
+Guest restrictions remain guest-only even if you remove `AuthenticatedRequests` from `exemptions` to apply scanner detection, tampering detection, and IP blocks to signed-in users.
+
+### Filament
+
+Filament panels use their own middleware stack. Add `ProtectRequests` to each panel's existing `middleware()` list in its panel provider:
+
+```php
+use Petecoop\Protec\Middleware\ProtectRequests;
+
+// In your PanelProvider's panel() method:
+return $panel
+    // ... existing panel configuration ...
+    ->middleware([
+        // ... keep the panel's existing middleware ...
+        ProtectRequests::class,
+    ]);
+```
+
+To enable guest component restrictions, set `GuestLivewireComponents` to `enabled => true` and use the Filament preset in that detector's `components` list:
 
 ```php
 'components' => [
@@ -166,6 +184,8 @@ For Filament installations a preset of components that are available to guest us
     // Add your own guest components here.
 ],
 ```
+
+The preset allows Filament's built-in login, registration, password-reset, and notification components. Add any custom guest components, including replacements for Filament's authentication pages, to the list.
 
 ## Additional information
 

@@ -8,6 +8,7 @@ use Illuminate\Support\Arr;
 use Petecoop\Protec\Contracts\Detector;
 use Petecoop\Protec\Data\Detection;
 use Petecoop\Protec\Data\Inspection;
+use Petecoop\Protec\Exemptions\AuthenticatedRequests;
 use Petecoop\Protec\LivewireComponentNames;
 
 class GuestLivewireComponents implements Detector
@@ -28,6 +29,7 @@ class GuestLivewireComponents implements Detector
             $inspection->response !== null
             || $inspection->exception !== null
             || ! $inspection->request->routeIs('*livewire.update')
+            || app(AuthenticatedRequests::class)->applies($inspection->request)
         ) {
             return null;
         }
