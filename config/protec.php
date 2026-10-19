@@ -11,6 +11,9 @@ return [
     // Disable detection and enforcement without removing the package.
     'enabled' => env('PROTEC_ENABLED', default: true),
 
+    // IP addresses or CIDR ranges that bypass all Protec detection and blocks.
+    'allowed_ips' => [],
+
     // Eloquent model for individual IP blocks and their history. Custom models
     // should extend IpBlock.
     'model' => IpBlock::class,

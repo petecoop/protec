@@ -8,7 +8,6 @@
 
 Once something is publicly accessible on the internet vulnerability scanners are inevitable. I've found that with Livewire the scanners seem to discover what components are accessible and attempt to send malicious payloads often resulting in a `CorruptComponentPayloadException` or `CannotUpdateLockedPropertyException`, it'd be very rare for a real user to trigger these errors and so this package allows you to start blocking IP's that trigger these.
 
-
 ## Installation
 
 ```sh
@@ -73,6 +72,18 @@ Protec::unblock('203.0.113.10');
 
 Unblocking lifts all active blocks for the IP by setting `unblocked_at`, preserving their original expiry and history.
 
+### Allowed IPs
+
+Allow trusted scanners or other clients using IP addresses or CIDR ranges:
+
+```php
+'allowed_ips' => [
+    '203.0.113.10',
+    '2001:db8::10',
+    '198.51.100.0/24',
+],
+```
+
 ### Querying an IP
 
 ```php
@@ -134,7 +145,7 @@ Livewire protection works automatically on its update route.
 
 ### Corrupt payloads
 
-`CorruptLivewirePayload` detects invalid snapshot checksums and attempts to change locked properties. Configure its entry under `detectors` using the shared policy settings:
+`CorruptLivewirePayload` detects invalid snapshot checksums, attempts to change locked properties, and calls to unavailable component methods (`MethodNotFoundException`). Configure its entry under `detectors` using the shared policy settings:
 
 ```php
 \Petecoop\Protec\Detectors\CorruptLivewirePayload::class => [

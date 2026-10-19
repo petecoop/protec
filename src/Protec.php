@@ -24,7 +24,7 @@ class Protec
 
     public function shouldInspect(Request $request): bool
     {
-        if (! config('protec.enabled', default: true)) {
+        if (! config('protec.enabled', default: true) || $this->isAllowedIp($request)) {
             return false;
         }
 

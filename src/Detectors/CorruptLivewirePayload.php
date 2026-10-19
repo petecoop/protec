@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Petecoop\Protec\Detectors;
 
+use Livewire\Exceptions\MethodNotFoundException;
 use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
 use Livewire\Mechanisms\HandleComponents\CorruptComponentPayloadException;
 use Petecoop\Protec\Contracts\Detector;
@@ -28,6 +29,7 @@ class CorruptLivewirePayload implements Detector
         if (
             $exception instanceof CorruptComponentPayloadException
             || $exception instanceof CannotUpdateLockedPropertyException
+            || $exception instanceof MethodNotFoundException
         ) {
             return new Detection(context: ['exception' => $exception::class]);
         }

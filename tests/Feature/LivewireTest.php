@@ -3,10 +3,13 @@
 declare(strict_types=1);
 
 use Illuminate\Auth\GenericUser;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Route;
+use Livewire\Exceptions\MethodNotFoundException;
 use Livewire\Livewire;
 use Petecoop\Protec\Detectors\CorruptLivewirePayload;
 use Petecoop\Protec\Detectors\GuestLivewireComponents;
+use Petecoop\Protec\Events\ActivityDetected;
 use Petecoop\Protec\GuestComponents;
 use Petecoop\Protec\Models\IpBlock;
 use Petecoop\Protec\Tests\Fixtures\Counter;
@@ -35,6 +38,38 @@ it('counts locked property tampering using a valid snapshot', function () {
     $this->postJson(Livewire::getUpdateUri(), $this->payload($snapshot, ['lockedValue' => 'changed']), [
         'X-Livewire' => 'true',
     ])->assertTooManyRequests();
+});
+
+it('counts unavailable method calls once per request and blocks at the configured threshold', function () {
+    Event::fake([ActivityDetected::class]);
+    $payload = $this->payload($this->counterSnapshot());
+    $payload['components'][0]['calls'] = [['method' => 'deleteUser', 'params' => []]];
+
+    for ($attempt = 1; $attempt < 5; $attempt++) {
+        $this->postJson(Livewire::getUpdateUri(), $payload, ['X-Livewire' => 'true'])->assertStatus(419);
+    }
+
+    $this->assertDatabaseCount('ip_blocks', 0);
+    $this->postJson(Livewire::getUpdateUri(), $payload, ['X-Livewire' => 'true'])->assertTooManyRequests();
+
+    $block = IpBlock::query()->sole();
+    expect($block->detector)
+        ->toBe('corrupt-livewire-payload')
+        ->and($block->context)
+        ->toBe(['exception' => MethodNotFoundException::class]);
+    Event::assertDispatchedTimes(ActivityDetected::class, 5);
+});
+
+it('leaves valid component method calls alone', function () {
+    config()->set('protec.detectors.'.CorruptLivewirePayload::class.'.policy.attempts', 1);
+    $payload = $this->payload($this->counterSnapshot());
+    $payload['components'][0]['calls'] = [['method' => 'increment', 'params' => []]];
+
+    $response = $this->postJson(Livewire::getUpdateUri(), $payload, ['X-Livewire' => 'true'])->assertOk();
+    $snapshot = json_decode($response->json('components.0.snapshot'), associative: true, flags: JSON_THROW_ON_ERROR);
+
+    expect($snapshot['data']['count'])->toBe(1);
+    $this->assertDatabaseCount('ip_blocks', 0);
 });
 
 it('does not classify ordinary 419 responses as tampering', function () {
