@@ -50,11 +50,12 @@ it('blocks subsequent application requests before the route runs without extendi
     Event::assertDispatchedTimes(IpBlocked::class, 1);
 });
 
-it('keeps a database block effective after the cache is flushed', function () {
+it('stops cache-backed enforcement after a flush while retaining database history', function () {
     Protec::record(request(), new Detection('test'), new Limit(attempts: 1));
     Cache::flush();
 
-    $this->get('/ok')->assertTooManyRequests();
+    $this->get('/ok')->assertOk();
+    expect(Protec::ip('127.0.0.1')->totalBlocks)->toBe(1);
 });
 
 it('allows requests again at the exact block expiration', function () {

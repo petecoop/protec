@@ -63,7 +63,7 @@ trait ManagesIpBlocks
         $blocks = $this->withIpLock($ip, function () use ($ip) {
             $model = $this->newBlockModel();
 
-            return $model
+            $blocks = $model
                 ->getConnection()
                 ->transaction(function () use ($model, $ip) {
                     $blocks = $model->newQuery()->active()->where('ip_address', $ip)->get();
@@ -76,6 +76,10 @@ trait ManagesIpBlocks
 
                     return $blocks;
                 });
+
+            $this->refreshBlockCache($ip);
+
+            return $blocks;
         });
 
         foreach ($blocks as $block) {
@@ -111,7 +115,7 @@ trait ManagesIpBlocks
         $block = $this->withIpLock($ip, function () use ($ip, $detector, $detection, $seconds, &$created): IpBlock {
             $model = $this->newBlockModel();
 
-            return $model
+            $block = $model
                 ->getConnection()
                 ->transaction(function () use ($model, $ip, $detector, $detection, $seconds, &$created): IpBlock {
                     $activeBlock = $detector === null ? null : $this->findActiveBlock($ip);
@@ -128,6 +132,10 @@ trait ManagesIpBlocks
 
                     return $block;
                 });
+
+            $this->refreshBlockCache($ip);
+
+            return $block;
         });
 
         if ($created) {

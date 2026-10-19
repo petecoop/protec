@@ -15,6 +15,10 @@ return [
     // should extend IpBlock.
     'model' => IpBlock::class,
 
+    // Cache store for block checks; 'default' uses Laravel's default store.
+    // Database-backed stores use direct block-table queries instead.
+    'cache_store' => 'default',
+
     // Groups that receive protection before route actions run. Global response
     // inspection also catches unrouted 404s. Additional groups can be added here.
     'middleware_groups' => ['web', 'api'],

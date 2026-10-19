@@ -17,6 +17,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class Protec
 {
+    use Concerns\CachesIpBlocks;
     use Concerns\HandlesLivewireExceptions;
     use Concerns\IdentifiesClients;
     use Concerns\ManagesIpBlocks;
@@ -50,7 +51,7 @@ class Protec
 
         $ip = $this->resolveIp($request);
 
-        return $ip === null ? null : $this->findActiveBlock($ip);
+        return $ip === null ? null : $this->cachedActiveBlock($ip);
     }
 
     public function inspect(Inspection $inspection): ?Response
@@ -99,7 +100,7 @@ class Protec
             return null;
         }
 
-        return $this->findActiveBlock($ip) ?? $this->recordActivity($ip, $detector, $detection, $limit);
+        return $this->cachedActiveBlock($ip) ?? $this->recordActivity($ip, $detector, $detection, $limit);
     }
 
     public function respond(Request $request, ?IpBlock $block = null, int $status = 429): Response

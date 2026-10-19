@@ -11,6 +11,7 @@ use Illuminate\Foundation\Http\Kernel;
 use Illuminate\Routing\Router;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\ServiceProvider;
+use Petecoop\Protec\Commands\CacheBlocksCommand;
 use Petecoop\Protec\Commands\UnblockIpCommand;
 use Petecoop\Protec\Middleware\InspectRequests;
 use Petecoop\Protec\Middleware\ProtectRequests;
@@ -31,7 +32,7 @@ class ProtecServiceProvider extends ServiceProvider
         $this->registerExceptionHandling();
 
         if ($this->app->runningInConsole()) {
-            $this->commands([UnblockIpCommand::class]);
+            $this->commands([CacheBlocksCommand::class, UnblockIpCommand::class]);
         }
     }
 

@@ -17,7 +17,6 @@ it('can permanently block on the first matching request through detector options
     $this->get('/.env')->assertTooManyRequests();
     expect(IpBlock::query()->sole()->expires_at)->toBeNull();
     $this->travel(365)->days();
-    Cache::flush();
     $this->get('/ok')->assertTooManyRequests();
     $this->artisan('model:prune', ['--model' => [IpBlock::class]])->assertSuccessful();
     $this->assertDatabaseCount('protec_ip_blocks', 1);

@@ -2,9 +2,12 @@
 
 ## Introduction
 
-`petecoop/protec` detects suspicious requests to your Laravel application and applies temporary or permanent IP blocks. It uses Laravel's rate limiter, stores blocks in an Eloquent model, and includes protection for Livewire update requests.
+`petecoop/protec` detects suspicious requests to your Laravel application and applies temporary or permanent IP blocks. It uses Laravel's rate limiter, stores blocks in an Eloquent model, and includes some optional Livewire protections.
 
-Supports Laravel 12/13 and PHP 8.3+. Livewire 4 is optional. Authenticated users are exempt by default. Protec checks the current request guard and all configured Laravel session guards, including non-default Filament guards, without changing the application's selected guard.
+### Why
+
+Once something is publicly accessible on the internet vulnerability scanners are inevitable. I've found that with Livewire the scanners seem to discover what components are accessible and attempt to send malicious payloads often resulting in a `CorruptComponentPayloadException` or `CannotUpdateLockedPropertyException`, it'd be very rare for a real user to trigger these errors and so this package allows you to start blocking IP's that trigger these.
+
 
 ## Installation
 
@@ -216,6 +219,26 @@ Schedule::command('model:prune', [
 ### Customisation
 
 This package is designed to be easy to customise. Implement the interfaces in `Petecoop\Protec\Contracts` to create your own detectors and exemptions and add them to the config. Extend the `Petecoop\Models\IpBlock` model and set the `model` option in the config to override it. `Protec` can be overriden / extended in Laravel's container.
+
+### Cache
+
+The `cache_store` option defaults to `'default'`, which uses the application's default cache store. Set it to a store name from `config/cache.php` to use a different store:
+
+```php
+'cache_store' => 'redis',
+```
+
+If the selected store's driver is `database`, Protec queries the block table directly. With other drivers, a cache miss allows the IP without a database lookup. Blocking writes an entry until expiry (forever for permanent blocks); unblocking removes it. Cache updates happen after the database transaction commits. Laravel's rate-limiter store remains configured through `cache.limiter`.
+
+Use a persistent cache shared by your application workers. Flushing, evicting, or changing the cache can stop enforcement of recorded blocks. Database history and `Protec::ip()` summaries remain available, but request checks do not repopulate missing entries from the database.
+
+Refill the cache from active database blocks after clearing or changing the cache store:
+
+```sh
+php artisan protec:cache
+```
+
+Or call `Protec::warmCache()` in your application. This fills the selected store, processes unique IPs in batches, preserves their original expiry, and excludes expired or manually unblocked records. It does nothing when the selected store's driver is `database`.
 
 ### Proxies
 
