@@ -19,7 +19,7 @@ it('can permanently block on the first matching request through detector options
     $this->travel(365)->days();
     $this->get('/ok')->assertTooManyRequests();
     $this->artisan('model:prune', ['--model' => [IpBlock::class]])->assertSuccessful();
-    $this->assertDatabaseCount('protec_ip_blocks', 1);
+    $this->assertDatabaseCount('ip_blocks', 1);
     $this->artisan('protec:unblock', ['ip' => '127.0.0.1'])->assertSuccessful();
     $this->get('/ok')->assertOk();
 });
@@ -59,7 +59,7 @@ it('adds a manual block while preserving the active temporary block', function (
         ->toBe('manual-review')
         ->and($block->context)
         ->toBe(['reference' => 'case-1']);
-    $this->assertDatabaseCount('protec_ip_blocks', 2);
+    $this->assertDatabaseCount('ip_blocks', 2);
     expect($original->fresh()->expires_at->equalTo($original->expires_at))->toBeTrue();
     $this->get('/ok')->assertTooManyRequests();
     expect(Protec::unblock('127.0.0.1'))->toBeTrue();
@@ -96,12 +96,12 @@ it('escalates the fifth new block within eight hours to seven days for one detec
         for ($attempt = 1; $attempt <= 3; $attempt++) {
             $this->get('/ok')->assertTooManyRequests();
         }
-        $this->assertDatabaseCount('protec_ip_blocks', $offence);
+        $this->assertDatabaseCount('ip_blocks', $offence);
         Cache::flush();
         $this->travel(60)->seconds();
     }
 
-    $this->assertDatabaseCount('protec_ip_blocks', 5);
+    $this->assertDatabaseCount('ip_blocks', 5);
     Event::assertDispatchedTimes(IpBlocked::class, 5);
 });
 
@@ -119,11 +119,11 @@ it('uses a rolling escalation window rather than a fixed window', function () {
     $this->travel(20)->seconds();
     $block = Protec::record(request(), new Detection('test'), $limit, ScannerProbe::class);
     expect($block->expires_at)->not->toBeNull();
-    $this->assertDatabaseCount('protec_ip_blocks', 3);
+    $this->assertDatabaseCount('ip_blocks', 3);
     $this->travel(1)->seconds();
     $block = Protec::record(request(), new Detection('test'), $limit, ScannerProbe::class);
     expect($block->expires_at)->toBeNull();
-    $this->assertDatabaseCount('protec_ip_blocks', 4);
+    $this->assertDatabaseCount('ip_blocks', 4);
 });
 
 it('excludes offences at the exact escalation window boundary', function () {
@@ -139,7 +139,7 @@ it('excludes offences at the exact escalation window boundary', function () {
     $block = Protec::record(request(), new Detection('test'), $limit, ScannerProbe::class);
 
     expect($block->expires_at)->not->toBeNull();
-    $this->assertDatabaseCount('protec_ip_blocks', 2);
+    $this->assertDatabaseCount('ip_blocks', 2);
 });
 
 it('keeps offence histories independent for each IP', function () {
@@ -182,10 +182,10 @@ it('retains recent escalation history even when pruning retention is zero', func
     Protec::record(request(), new Detection('test'), new Limit(attempts: 1, blockFor: 1), ScannerProbe::class);
     $this->travel(2)->seconds();
     $this->artisan('model:prune', ['--model' => [IpBlock::class]])->assertSuccessful();
-    $this->assertDatabaseCount('protec_ip_blocks', 1);
+    $this->assertDatabaseCount('ip_blocks', 1);
     $this->travel(8)->hours();
     $this->artisan('model:prune', ['--model' => [IpBlock::class]])->assertSuccessful();
-    $this->assertDatabaseCount('protec_ip_blocks', 0);
+    $this->assertDatabaseCount('ip_blocks', 0);
 });
 
 it('does not count manual blocks as automatic offences', function () {
@@ -263,8 +263,8 @@ it('preserves the longest detector escalation window during pruning', function (
     Protec::record(request(), new Detection('test'), new Limit(attempts: 1, blockFor: 1), ScannerProbe::class);
     $this->travel(2)->hours();
     $this->artisan('model:prune', ['--model' => [IpBlock::class]])->assertSuccessful();
-    $this->assertDatabaseCount('protec_ip_blocks', 1);
+    $this->assertDatabaseCount('ip_blocks', 1);
     $this->travel(7)->hours();
     $this->artisan('model:prune', ['--model' => [IpBlock::class]])->assertSuccessful();
-    $this->assertDatabaseCount('protec_ip_blocks', 0);
+    $this->assertDatabaseCount('ip_blocks', 0);
 });

@@ -63,8 +63,8 @@ it('accepts retention durations and treats integers as seconds', function () {
     Petecoop\Protec\Facades\Protec::block('203.0.113.1', for: 1);
     $this->travel(60)->seconds();
     $this->artisan('model:prune', ['--model' => [Petecoop\Protec\Models\IpBlock::class]])->assertSuccessful();
-    $this->assertDatabaseCount('protec_ip_blocks', 1);
+    $this->assertDatabaseCount('ip_blocks', 1);
     $this->travel(1)->seconds();
     $this->artisan('model:prune', ['--model' => [Petecoop\Protec\Models\IpBlock::class]])->assertSuccessful();
-    $this->assertDatabaseCount('protec_ip_blocks', 0);
+    $this->assertDatabaseCount('ip_blocks', 0);
 });

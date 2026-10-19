@@ -17,7 +17,7 @@ it('returns an empty summary without creating records for an unknown IP', functi
         'active_blocks' => 0,
         'latest_block' => null,
     ]);
-    $this->assertDatabaseCount('protec_ip_blocks', 0);
+    $this->assertDatabaseCount('ip_blocks', 0);
 });
 
 it('summarizes retained history and the longest active block for only the requested IP', function () {
@@ -131,7 +131,7 @@ it('rejects invalid summary IPs', function (string $ip) {
 })->with(['invalid', '', '203.0.113.1/24']);
 
 it('summarizes configured models using their own table', function () {
-    Schema::rename('protec_ip_blocks', 'custom_ip_blocks');
+    Schema::rename('ip_blocks', 'custom_ip_blocks');
     config()->set('protec.model', CustomBlock::class);
     Protec::block('203.0.113.1');
 

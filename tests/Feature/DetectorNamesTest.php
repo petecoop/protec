@@ -63,7 +63,7 @@ it('uses an overridden name while finding policy and escalation by the configure
         ->toBeNull()
         ->and($block->fresh()->expires_at)
         ->not->toBeNull();
-    $this->assertDatabaseCount('protec_ip_blocks', 2);
+    $this->assertDatabaseCount('ip_blocks', 2);
 
     expect(Protec::unblock('127.0.0.1'))->toBeTrue();
     $this->get('/.env')->assertNotFound();

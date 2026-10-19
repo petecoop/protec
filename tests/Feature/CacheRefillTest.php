@@ -25,7 +25,7 @@ it('refills unique active IPs while excluding expired and unblocked records', fu
         ->expectsOutput('Block cache refreshed for 2 IP addresses.')
         ->assertSuccessful();
 
-    $this->assertDatabaseCount('protec_ip_blocks', 5);
+    $this->assertDatabaseCount('ip_blocks', 5);
     expect(Cache::get('unrelated'))->toBe('keep');
     DB::enableQueryLog();
     $this->get('/ok')->assertTooManyRequests();
@@ -99,7 +99,7 @@ it('skips cache refill for the database driver without querying either table', f
 })->with(['application default' => ['default', 'sql-cache'], 'Protec override' => ['sql-cache', 'array']]);
 
 it('refills using the configured block model and table', function () {
-    Schema::rename('protec_ip_blocks', 'custom_ip_blocks');
+    Schema::rename('ip_blocks', 'custom_ip_blocks');
     config()->set('protec.model', CustomBlock::class);
     $block = CustomBlock::create(['ip_address' => '127.0.0.1', 'context' => ['ticket' => 1]]);
 

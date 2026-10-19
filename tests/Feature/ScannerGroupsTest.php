@@ -22,7 +22,7 @@ it('can disable a group while retaining the remaining groups', function () {
 
     $this->get('/telescope')->assertNotFound();
     $this->get('/telescope/requests')->assertNotFound();
-    $this->assertDatabaseCount('protec_ip_blocks', 0);
+    $this->assertDatabaseCount('ip_blocks', 0);
     $this->get('/wp-login.php')->assertTooManyRequests();
 });
 
@@ -60,7 +60,7 @@ it('recognizes paths from the expanded scanner catalogue', function (string $pat
 
 it('avoids broad substring matches for ordinary application paths', function (string $path) {
     $this->get($path)->assertNotFound();
-    $this->assertDatabaseCount('protec_ip_blocks', 0);
+    $this->assertDatabaseCount('ip_blocks', 0);
 })->with(['/roadmap', '/my-config.json', '/archive.zip', '/telescope-guide']);
 
 it('recognizes storage log probes when they reach the detector as a 404', function () {
@@ -87,7 +87,7 @@ it('mixes built-in pattern sets with custom paths', function () {
 it('can disable scanner matching by supplying an empty pattern list', function () {
     config()->set('protec.detectors.'.ScannerProbe::class.'.patterns', []);
     $this->get('/.env')->assertNotFound();
-    $this->assertDatabaseCount('protec_ip_blocks', 0);
+    $this->assertDatabaseCount('ip_blocks', 0);
 });
 
 it('keeps scanner patterns out of other detector configurations', function () {

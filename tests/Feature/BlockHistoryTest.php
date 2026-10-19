@@ -28,7 +28,7 @@ it('counts blocks created before escalation was enabled', function () {
     $block = Protec::record(request(), new Detection, $limit, ScannerProbe::class);
 
     expect($block->expires_at->equalTo(now()->addDays(7)))->toBeTrue();
-    $this->assertDatabaseCount('protec_ip_blocks', 4);
+    $this->assertDatabaseCount('ip_blocks', 4);
 });
 
 it('can increase the escalation threshold without losing earlier blocks', function () {
@@ -114,7 +114,7 @@ it('lifts every active block for an IP while preserving the original records', f
         ->and(Protec::unblock('203.0.113.1'))
         ->toBeFalse();
     Event::assertDispatchedTimes(IpUnblocked::class, 2);
-    $this->assertDatabaseCount('protec_ip_blocks', 4);
+    $this->assertDatabaseCount('ip_blocks', 4);
 });
 
 it('prunes lifted permanent and temporary blocks after retention from unblocking', function () {
@@ -155,7 +155,7 @@ it('retains lifted automatic blocks for the configured escalation window', funct
 });
 
 it('indexes active lookups, escalation counts, and pruning without making IPs unique', function () {
-    $indexes = collect(Schema::getIndexes('protec_ip_blocks'));
+    $indexes = collect(Schema::getIndexes('ip_blocks'));
 
     foreach ([
         ['ip_address', 'unblocked_at', 'expires_at'],
@@ -167,5 +167,5 @@ it('indexes active lookups, escalation counts, and pruning without making IPs un
             fn (array $index): bool => $index['columns'] === $columns && ! $index['unique'],
         ))->toBeTrue();
     }
-    expect(Schema::hasColumn('protec_ip_blocks', 'block_history'))->toBeFalse();
+    expect(Schema::hasColumn('ip_blocks', 'block_history'))->toBeFalse();
 });

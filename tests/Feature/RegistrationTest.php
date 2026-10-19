@@ -39,7 +39,7 @@ it('preserves application error response callbacks when inspecting Livewire fail
     ])->assertStatus(419)->assertHeader('X-App-Error', 'handled');
     $this->postJson(Livewire::getUpdateUri(), $this->payload($snapshot), ['X-Livewire' => 'true'])
         ->assertTooManyRequests();
-    $this->assertDatabaseCount('protec_ip_blocks', 1);
+    $this->assertDatabaseCount('ip_blocks', 1);
 });
 
 it('also detects Livewire exceptions when the app renders a plain Symfony response', function () {
@@ -93,7 +93,7 @@ it('leaves unrelated errors and their reporting alone', function () {
 
     $this->get('/error')->assertServiceUnavailable()->assertSee('application error');
     expect($reported)->toBeTrue();
-    $this->assertDatabaseCount('protec_ip_blocks', 0);
+    $this->assertDatabaseCount('ip_blocks', 0);
 });
 
 it('does not leak captured exceptions into later requests', function () {
@@ -104,7 +104,7 @@ it('does not leak captured exceptions into later requests', function () {
     for ($attempt = 1; $attempt <= 6; $attempt++) {
         $this->get('/ok')->assertOk();
     }
-    $this->assertDatabaseCount('protec_ip_blocks', 0);
+    $this->assertDatabaseCount('ip_blocks', 0);
 });
 
 it('keeps registration idempotent when booted again after the kernel and handler are resolved', function () {
@@ -117,7 +117,7 @@ it('keeps registration idempotent when booted again after the kernel and handler
     config()->set('protec.detectors.'.CorruptLivewirePayload::class.'.policy.attempts', 2);
 
     $this->postJson(Livewire::getUpdateUri(), $this->payload($snapshot), ['X-Livewire' => 'true'])->assertStatus(419);
-    $this->assertDatabaseCount('protec_ip_blocks', 0);
+    $this->assertDatabaseCount('ip_blocks', 0);
     $this->postJson(Livewire::getUpdateUri(), $this->payload($snapshot), [
         'X-Livewire' => 'true',
     ])->assertTooManyRequests();

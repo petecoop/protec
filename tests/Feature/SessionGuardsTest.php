@@ -44,7 +44,7 @@ it('recognizes a session guard before Livewire restores persistent authenticatio
     ])->assertOk();
     $updated = json_decode($response->json('components.0.snapshot'), associative: true);
     expect($updated['data']['count'])->toBe(10);
-    $this->assertDatabaseCount('protec_ip_blocks', 0);
+    $this->assertDatabaseCount('ip_blocks', 0);
 
     Protec::block('127.0.0.1');
     Auth::shouldUse('web');
@@ -64,7 +64,7 @@ it('keeps guest restrictions guest-only when the default guard is authenticated'
     $this->postJson(Livewire::getUpdateUri(), $this->payload($snapshot, ['count' => 10]), [
         'X-Livewire' => 'true',
     ])->assertOk();
-    $this->assertDatabaseCount('protec_ip_blocks', 0);
+    $this->assertDatabaseCount('ip_blocks', 0);
 });
 
 it('still detects tampering by session-authenticated users when exemptions are removed', function () {

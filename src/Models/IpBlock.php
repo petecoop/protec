@@ -23,8 +23,6 @@ class IpBlock extends Model
 {
     use Prunable;
 
-    protected $table = 'protec_ip_blocks';
-
     protected $fillable = ['ip_address', 'detector', 'reason', 'context', 'expires_at', 'unblocked_at'];
 
     protected function casts(): array

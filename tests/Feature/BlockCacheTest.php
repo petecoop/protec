@@ -140,7 +140,7 @@ it('caches the longest overlapping temporary block until its exact expiration', 
 });
 
 it('restores configured models and casts from cached attributes for normalized IPv6 addresses', function () {
-    Schema::rename('protec_ip_blocks', 'custom_ip_blocks');
+    Schema::rename('ip_blocks', 'custom_ip_blocks');
     config()->set('protec.model', CustomBlock::class);
     Protec::block('2001:db8::1', reason: 'review', context: ['ticket' => 1]);
     DB::enableQueryLog();
@@ -199,7 +199,7 @@ it('does not cache a block when an outer transaction rolls back', function () {
         throw new RuntimeException('Rollback');
     }))
         ->toThrow(RuntimeException::class, 'Rollback');
-    $this->assertDatabaseCount('protec_ip_blocks', 0);
+    $this->assertDatabaseCount('ip_blocks', 0);
     DB::enableQueryLog();
 
     $this->get('/ok')->assertOk();

@@ -18,7 +18,7 @@ it('creates one automatic block when concurrent requests cross the threshold', f
     try {
         config()->set('database.connections.testing.database', $directory.'/blocks.sqlite');
         DB::purge('testing');
-        (require __DIR__.'/../../database/migrations/create_protec_ip_blocks_table.php')->up();
+        (require __DIR__.'/../../database/migrations/create_ip_blocks_table.php')->up();
 
         foreach ([1, 2] as $worker) {
             $process = new Process([
@@ -53,7 +53,7 @@ it('creates one automatic block when concurrent requests cross the threshold', f
         }
 
         expect($workers[0]->getOutput())->toBe($workers[1]->getOutput());
-        $this->assertDatabaseCount('protec_ip_blocks', 1);
+        $this->assertDatabaseCount('ip_blocks', 1);
         expect(IpBlock::query()->sole()->isActive())->toBeTrue();
     } finally {
         foreach ($workers as $process) {

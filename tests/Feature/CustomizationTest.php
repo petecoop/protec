@@ -46,7 +46,7 @@ it('can override request-dependent limits through the Protec container binding',
 });
 
 it('uses a configured model for persistence, enforcement, and unblocking', function () {
-    Illuminate\Support\Facades\Schema::rename('protec_ip_blocks', 'custom_ip_blocks');
+    Illuminate\Support\Facades\Schema::rename('ip_blocks', 'custom_ip_blocks');
     config()->set('protec.model', Petecoop\Protec\Tests\Fixtures\CustomBlock::class);
     config()->set('protec.detectors.'.ScannerProbe::class.'.policy.attempts', 1);
 

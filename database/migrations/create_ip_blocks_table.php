@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
     public function up(): void
     {
-        Schema::create('protec_ip_blocks', static function (Blueprint $table): void {
+        Schema::create('ip_blocks', static function (Blueprint $table): void {
             $table->id();
             $table->ipAddress('ip_address');
             $table->string('detector')->nullable();
@@ -26,6 +26,6 @@ return new class extends Migration {
 
     public function down(): void
     {
-        Schema::dropIfExists('protec_ip_blocks');
+        Schema::dropIfExists('ip_blocks');
     }
 };

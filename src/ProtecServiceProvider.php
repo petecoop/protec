@@ -40,8 +40,8 @@ class ProtecServiceProvider extends ServiceProvider
     {
         $this->publishes([__DIR__.'/../config/protec.php' => config_path('protec.php')], 'protec-config');
         $this->publishesMigrations([
-            __DIR__.'/../database/migrations/create_protec_ip_blocks_table.php' => database_path(
-                'migrations/create_protec_ip_blocks_table.php',
+            __DIR__.'/../database/migrations/create_ip_blocks_table.php' => database_path(
+                'migrations/create_ip_blocks_table.php',
             ),
         ], 'protec-migrations');
     }

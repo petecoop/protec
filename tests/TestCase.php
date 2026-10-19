@@ -37,7 +37,7 @@ abstract class TestCase extends Orchestra
     {
         parent::setUp();
 
-        (require __DIR__.'/../database/migrations/create_protec_ip_blocks_table.php')->up();
+        (require __DIR__.'/../database/migrations/create_ip_blocks_table.php')->up();
 
         Livewire::component('counter', Counter::class);
         Route::middleware('web')->get('/counter', static fn (): string => Livewire::mount('counter'));

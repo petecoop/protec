@@ -21,7 +21,7 @@ it('blocks the tenth scanner probe and records a readable IP and expiry', functi
         $this->get('/wp-admin/setup-config.php')->assertNotFound();
     }
 
-    $this->assertDatabaseCount('protec_ip_blocks', 0);
+    $this->assertDatabaseCount('ip_blocks', 0);
     $this->get('/wp-admin/setup-config.php')->assertTooManyRequests()->assertHeaderMissing('Retry-After');
 
     $block = IpBlock::query()->sole();
@@ -73,7 +73,7 @@ it('resets counting after the observation window expires', function () {
 
     $this->travel(61)->seconds();
     $this->get('/.env')->assertNotFound();
-    $this->assertDatabaseCount('protec_ip_blocks', 0);
+    $this->assertDatabaseCount('ip_blocks', 0);
 });
 
 it('exempts authenticated requests even when their IP is blocked', function () {
@@ -82,7 +82,7 @@ it('exempts authenticated requests even when their IP is blocked', function () {
 
     $this->get('/ok')->assertOk();
     $this->get('/.env')->assertNotFound();
-    $this->assertDatabaseCount('protec_ip_blocks', 1);
+    $this->assertDatabaseCount('ip_blocks', 1);
 });
 
 it('can include authenticated requests by disabling the exemption', function () {
@@ -99,7 +99,7 @@ it('does not count successful scanner-looking routes or words in query strings',
         $this->get('/missing?provider=sendgrid&redirect=/wp-admin')->assertNotFound();
     }
 
-    $this->assertDatabaseCount('protec_ip_blocks', 0);
+    $this->assertDatabaseCount('ip_blocks', 0);
 });
 
 it('matches sensitive path probes including encoded paths', function (string $path) {
@@ -155,7 +155,7 @@ it('creates another row after expiration and preserves the original block', func
     $this->travel(60)->seconds();
     Protec::record(request(), new Detection('two'), $limit);
 
-    $this->assertDatabaseCount('protec_ip_blocks', 2);
+    $this->assertDatabaseCount('ip_blocks', 2);
     expect(IpBlock::query()->latest('id')->first()->reason)
         ->toBe('two')
         ->and($original->fresh()->reason)
@@ -174,6 +174,6 @@ it('prunes expired records after retention but retains active and recently expir
 
     $this->artisan('model:prune', ['--model' => [IpBlock::class]])->assertSuccessful();
 
-    $this->assertDatabaseMissing('protec_ip_blocks', ['ip_address' => '203.0.113.1']);
-    $this->assertDatabaseCount('protec_ip_blocks', 2);
+    $this->assertDatabaseMissing('ip_blocks', ['ip_address' => '203.0.113.1']);
+    $this->assertDatabaseCount('ip_blocks', 2);
 });

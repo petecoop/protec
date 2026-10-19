@@ -21,7 +21,7 @@ it('counts genuine checksum failures and blocks on the fifth without counting tw
         ])->assertStatus(419);
     }
 
-    $this->assertDatabaseCount('protec_ip_blocks', 0);
+    $this->assertDatabaseCount('ip_blocks', 0);
     $this->postJson(Livewire::getUpdateUri(), $this->payload($snapshot), [
         'X-Livewire' => 'true',
     ])->assertTooManyRequests();
@@ -44,7 +44,7 @@ it('does not classify ordinary 419 responses as tampering', function () {
         $this->postJson('/expired-session')->assertStatus(419);
     }
 
-    $this->assertDatabaseCount('protec_ip_blocks', 0);
+    $this->assertDatabaseCount('ip_blocks', 0);
 });
 
 it('exempts authenticated users from Livewire tampering detection', function () {
@@ -58,7 +58,7 @@ it('exempts authenticated users from Livewire tampering detection', function () 
         ])->assertStatus(419);
     }
 
-    $this->assertDatabaseCount('protec_ip_blocks', 0);
+    $this->assertDatabaseCount('ip_blocks', 0);
 });
 
 it('denies valid snapshots for disallowed components before executing their actions', function () {
