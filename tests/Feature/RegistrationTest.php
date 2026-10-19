@@ -55,7 +55,14 @@ it('also detects Livewire exceptions when the app renders a plain Symfony respon
         ->assertTooManyRequests();
 });
 
-it('suppresses known tampering before app reporting callbacks and honours the reporting option', function (string $method) {
+it('suppresses known tampering before app reporting callbacks and honours the reporting option', function (
+    array $data,
+    array $updates,
+    string $method,
+) {
+    // Livewire can handle reporting itself in production. Debug mode ensures
+    // these assertions exercise Protec's suppression for every exception type.
+    config()->set('app.debug', true);
     $reported = false;
     $this->app
         ->make(ExceptionHandler::class)
@@ -66,25 +73,23 @@ it('suppresses known tampering before app reporting callbacks and honours the re
         });
     $snapshot = $this->counterSnapshot();
 
-    if ($method === '$refresh') {
-        $snapshot['data']['count'] = 99;
-    }
-
-    $payload = $this->payload($snapshot);
+    $snapshot['data'] = array_replace($snapshot['data'], $data);
+    $payload = $this->payload($snapshot, $updates);
     $payload['components'][0]['calls'] = [['method' => $method, 'params' => []]];
 
-    $this->postJson(Livewire::getUpdateUri(), $payload, ['X-Livewire' => 'true'])->assertStatus(419);
+    $this->postJson(Livewire::getUpdateUri(), $payload, ['X-Livewire' => 'true'])->assertInternalServerError();
     expect($reported)->toBeFalse();
 
     config()->set('protec.detectors.'.CorruptLivewirePayload::class.'.report', true);
-    // Livewire's exception has its own report() in production. Debug allows
-    // Laravel's regular reporting callbacks to run for this assertion.
-    config()->set('app.debug', true);
     $this->postJson(Livewire::getUpdateUri(), $payload, [
         'X-Livewire' => 'true',
     ])->assertInternalServerError();
     expect($reported)->toBeTrue();
-})->with(['checksum' => '$refresh', 'unavailable method' => 'deleteUser']);
+})->with([
+    'checksum' => [['count' => 99], [], '$refresh'],
+    'locked property' => [[], ['lockedValue' => 'changed'], '$refresh'],
+    'unavailable method' => [[], [], 'deleteUser'],
+]);
 
 it('leaves unrelated errors and their reporting alone', function () {
     $reported = false;

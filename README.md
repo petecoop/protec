@@ -145,7 +145,7 @@ Livewire protection works automatically on its update route.
 
 ### Corrupt payloads
 
-`CorruptLivewirePayload` detects invalid snapshot checksums, attempts to change locked properties, and calls to unavailable component methods (`MethodNotFoundException`). Configure its entry under `detectors` using the shared policy settings:
+`CorruptLivewirePayload` detects invalid snapshot checksums, attempts to change locked properties, and calls to unavailable component methods.. Configure its entry under `detectors` using the shared policy settings:
 
 ```php
 \Petecoop\Protec\Detectors\CorruptLivewirePayload::class => [
@@ -154,7 +154,7 @@ Livewire protection works automatically on its update route.
 ],
 ```
 
-Below the threshold, the original error response is preserved. Known tampering is suppressed from application error reporting by default; set this detector's `report` option to `true` to keep it in the application's normal reporting flow.
+The `report` option allows suppressing error reports to Nightwatch / Sentry etc.
 
 ### Guest component restrictions
 
